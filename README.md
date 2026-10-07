@@ -42,7 +42,7 @@ Open `.env` and fill in your values — at minimum:
 
 ```env
 MONGODB_URI=mongodb://localhost:27017/whippe
-SESSION_SECRET=a-random-string-of-at-least-32-characters
+JWT_SECRET=a-random-string-of-at-least-32-characters
 ```
 
 **3. Start the development server**
@@ -92,7 +92,7 @@ Returns `200` when the server is running:
 | `NODE_ENV` | No | `development` | `development`, `production`, or `test` |
 | `PORT` | No | `5000` | Port the server listens on |
 | `MONGODB_URI` | **Yes** | — | MongoDB connection string |
-| `SESSION_SECRET` | **Yes** | — | Secret for signing JWTs (min 32 chars) |
+| `JWT_SECRET` | **Yes** | — | Secret for signing JWTs (min 32 chars) |
 | `CORS_ORIGIN` | No | `http://localhost:3000` | Comma-separated list of allowed origins |
 | `OBJECT_STORAGE_ENDPOINT` | No | — | Object storage endpoint (Phase 8+) |
 | `OBJECT_STORAGE_BUCKET` | No | — | Storage bucket name |

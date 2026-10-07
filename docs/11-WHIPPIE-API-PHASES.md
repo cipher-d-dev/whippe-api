@@ -178,6 +178,9 @@ The token is permanently invalid after logout even if someone captured the cooki
 Use **bcrypt** (cost factor 12) for password hashing.
 Argon2id is acceptable but bcrypt is the chosen default for simplicity.
 
+### Environment variables required
+- `JWT_SECRET` — signs both access and refresh tokens (min 32 chars)
+
 ## Important rule
 
 Google authentication is only an authentication method.
