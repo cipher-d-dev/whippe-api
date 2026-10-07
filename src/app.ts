@@ -3,6 +3,7 @@ import helmet from 'helmet';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
+import passport from './lib/passport';
 
 import { env } from './config/env';
 import { errorHandler } from './middleware/error-handler';
@@ -35,6 +36,9 @@ app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 app.use(cookieParser());
 
+// ─── Passport (OAuth strategies — no session, JWT only) ──────────────────────
+app.use(passport.initialize());
+
 // ─── Health check ────────────────────────────────────────────────────────────
 app.get('/health', (_req: Request, res: Response) => {
   res.status(200).json({
@@ -45,9 +49,14 @@ app.get('/health', (_req: Request, res: Response) => {
   });
 });
 
-// ─── API routes (domain modules registered here in later phases) ─────────────
-// e.g. app.use('/api/v1/auth', authRouter);
-//      app.use('/api/v1/users', usersRouter);
+// ─── API routes ───────────────────────────────────────────────────────────────
+import authRouter from './modules/auth/auth.routes';
+
+app.use('/api/v1/auth', authRouter);
+
+// Future domain routers registered here in later phases:
+// app.use('/api/v1/users', usersRouter);
+// app.use('/api/v1/interns', internsRouter);
 
 // ─── 404 ─────────────────────────────────────────────────────────────────────
 app.use(notFound);

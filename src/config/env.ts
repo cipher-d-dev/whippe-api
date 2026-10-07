@@ -10,6 +10,14 @@ const envSchema = z.object({
   // CORS — comma-separated list of allowed origins
   CORS_ORIGIN: z.string().default('http://localhost:3000'),
 
+  // Frontend URL — used for OAuth redirects
+  FRONTEND_URL: z.string().url().default('http://localhost:3000'),
+
+  // Google OAuth
+  GOOGLE_CLIENT_ID: z.string().min(1, 'GOOGLE_CLIENT_ID is required'),
+  GOOGLE_CLIENT_SECRET: z.string().min(1, 'GOOGLE_CLIENT_SECRET is required'),
+  GOOGLE_CALLBACK_URL: z.string().url('GOOGLE_CALLBACK_URL must be a valid URL'),
+
   // Object storage (required when uploading files — not strictly needed for Phase 0)
   OBJECT_STORAGE_ENDPOINT: z.string().optional(),
   OBJECT_STORAGE_BUCKET: z.string().optional(),

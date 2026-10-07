@@ -1,5 +1,22 @@
 # WHIPPE API PHASES
 
+---
+
+## AGENT STANDING RULE — ENV VARS & OUTSTANDING ITEMS
+
+At the end of every phase the coding agent must produce an **OUTSTANDING ITEMS** section that lists:
+
+1. Every new environment variable introduced in the phase — variable name, purpose, whether required or optional, and a placeholder value to add to `.env.example` and `.env`.
+2. Any external credential or service that must be configured before the feature works (OAuth apps, object storage buckets, etc.).
+3. Any decision that was deferred and what is needed to unblock it.
+
+If a feature requires an env var or external credential that is not yet available, the agent must:
+- Add the variable as a placeholder to `.env.example` and `.env` immediately.
+- Note what the owner needs to fill in.
+- Never silently skip the feature without documenting why.
+
+---
+
 ## Purpose
 
 This document defines the implementation phases for the Whippe backend API.
