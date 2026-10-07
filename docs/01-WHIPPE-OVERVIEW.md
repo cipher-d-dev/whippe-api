@@ -2,21 +2,21 @@
 
 ## 1. Purpose
 
-**Whippe** is AIT's internal intern management and operations platform.
+**Whippe** is DAAR Communications' internal intern management and operations platform.
 
-Its purpose is to reduce the manual work involved in managing interns and NYSC IT personnel while preserving paper-based processes where AIT still needs them.
+Its purpose is to reduce the manual work involved in managing interns and NYSC IT personnel across DAAR Communications and its subsidiaries — AIT, Raypower, and Faaji — while preserving paper-based processes where they are still required.
 
-Whippe is not a replacement for AIT's entire HR system. It is focused specifically on the intern lifecycle:
+Whippe is not a replacement for DAAR Communications' entire HR system. It is focused specifically on the intern lifecycle:
 
 > onboarding → assignment → attendance → work → supervision → evaluation → completion
 
-AIT is expected to have approximately 100–200 interns/NYSC IT personnel. The system should therefore be reliable, secure and maintainable, but it should **not** be engineered like a massive enterprise platform.
+DAAR Communications is expected to have approximately 100–200 interns/NYSC IT personnel across its subsidiaries. The system should therefore be reliable, secure and maintainable, but it should **not** be engineered like a massive enterprise platform.
 
 ---
 
 # 2. Intern Onboarding Lifecycle
 
-Whippe's intern onboarding begins **after the intern completes AIT's physical screening process**.
+Whippe's intern onboarding begins **after the intern completes DAAR Communications' physical screening process**.
 
 The account lifecycle is separate from the internship lifecycle.
 
@@ -29,7 +29,7 @@ Google account OR manual account signup
         ↓
 PENDING HR VERIFICATION
         ↓
-HR approves or rejects the account
+HR approves or rejects the account by checking name and email
         ├── APPROVED → ACTIVE ACCOUNT
         └── REJECTED → ACCESS BLOCKED
 
@@ -38,7 +38,7 @@ Pending accounts that remain unverified for 30 days
 AUTOMATIC DELETION
 ```
 
-Google authentication proves ownership of the Google account. It does **not** constitute AIT/HR verification.
+Google authentication proves ownership of the Google account. It does **not** constitute DAAR Communications/HR verification.
 
 A pending account has restricted access until HR verification. It is not a fully active intern account.
 
@@ -96,7 +96,7 @@ Supervisors must not receive HR-level access simply because they use the same ap
 
 ## 2.2 Whippe Intern PWA
 
-A mobile-first Progressive Web App used by interns and NYSC IT personnel.
+A mobile-first Progressive Web App used by interns and NYSC IT personnel across DAAR Communications subsidiaries.
 
 It avoids requiring App Store distribution or Android APK sideloading.
 
@@ -307,7 +307,7 @@ Optional AI.
 
 ## Paper processes
 
-Do not force AIT to abandon paper.
+Do not force DAAR Communications to abandon paper.
 
 Whippe should be able to record:
 

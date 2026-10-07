@@ -56,7 +56,7 @@ The web application and intern PWA must consume the API rather than implementing
 6. Validate incoming data at the API boundary.
 7. Enforce role-based access on the backend.
 8. Keep account status separate from internship status.
-9. Keep physical/paper processes that AIT still requires representable in the digital system.
+9. Keep physical/paper processes that DAAR Communications still requires representable in the digital system.
 10. Store document metadata in MongoDB while actual files can use object storage.
 11. Keep important administrative actions traceable.
 12. Prefer simple infrastructure appropriate for the expected size of the internship programme.
@@ -221,19 +221,19 @@ The API can reliably determine:
 
 ## Goal
 
-Implement the digital onboarding flow that begins after physical screening at AIT.
+Implement the digital onboarding flow that begins after physical screening at DAAR Communications.
 
 ## Workflow
 
 The intended flow is:
 
-1. Intern completes the required physical screening at AIT.
+1. Intern completes the required physical screening at DAAR Communications.
 2. Intern creates an account through the Whippe intern application.
 3. Intern may register using:
    - Google
    - manual account signup
 4. The account enters a pending verification state.
-5. HR reviews the account.
+5. HR reviews the account by checking the intern's name and email against the screened intern list.
 6. HR either:
    - approves the account
    - rejects the account
@@ -318,7 +318,7 @@ The intern's account and internship record should remain logically separate.
 
 An account identifies the user.
 
-The internship record represents the person's participation in the AIT internship programme.
+The internship record represents the person's participation in the DAAR Communications internship programme.
 
 ## Expected result
 
@@ -510,7 +510,7 @@ Where actual files are stored outside MongoDB, MongoDB should contain the releva
 
 ## Important principle
 
-Whippe does not need to force AIT to eliminate paper processes.
+Whippe does not need to force DAAR Communications to eliminate paper processes.
 
 The API should allow a document or requirement to be digitally tracked even when the actual physical document remains part of the existing workflow.
 

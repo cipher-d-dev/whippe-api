@@ -1,8 +1,8 @@
 # Whippe API
 
-The shared Express backend for Whippe — AIT's intern management platform.
+The shared Express backend for Whippe — DAAR Communications' intern management platform.
 
-Serves both **Whippe Web** (HR/Supervisor) and **Whippe Intern PWA**.
+Serves both **Whippe Web** (HR/Supervisor) and **Whippe Intern PWA** across AIT, Raypower, and Faaji.
 
 ---
 

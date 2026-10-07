@@ -55,7 +55,7 @@ ACTIVE
 COMPLETED
 ```
 
-The exact final states should reflect AIT's confirmed process.
+The exact final states should reflect DAAR Communications' confirmed process.
 
 Do not combine account status and internship status into one field.
 
@@ -63,11 +63,11 @@ Do not combine account status and internship status into one field.
 
 # 3. Physical Screening and Account Creation
 
-Physical screening occurs before Whippe account activation.
+Physical screening occurs at DAAR Communications before Whippe account activation.
 
-The system must be able to associate the account created after screening with the appropriate AIT intern/screening record.
-
-The exact matching method must be confirmed with AIT. Do not invent a particular identifier unless AIT requires it.
+After screening, the intern creates a Whippe account using their name and email.
+HR verifies the account by visually matching the name and email against the screened intern list at their desk.
+No formal screening reference number or additional identifier is required.
 
 Supported signup methods:
 
@@ -76,7 +76,7 @@ Supported signup methods:
 
 Both create a `PENDING_HR_VERIFICATION` account.
 
-Google authentication is not AIT/HR verification.
+Google authentication is not DAAR Communications/HR verification.
 
 Only HR/Admin can approve the account.
 
