@@ -55,15 +55,17 @@ import usersRouter from './modules/users/users.routes';
 import internsRouter from './modules/interns/interns.routes';
 import departmentsRouter from './modules/departments/departments.routes';
 import supervisorsRouter from './modules/supervisors/supervisors.routes';
+import attendanceRouter from './modules/attendance/attendance.routes';
 
 app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/users', usersRouter);
 app.use('/api/v1/interns', internsRouter);
 app.use('/api/v1/departments', departmentsRouter);
 app.use('/api/v1/supervisors', supervisorsRouter);
+app.use('/api/v1/attendance', attendanceRouter);
 
 // Future domain routers registered here in later phases:
-// app.use('/api/v1/attendance', attendanceRouter);
+// app.use('/api/v1/tasks', tasksRouter);
 
 // ─── 404 ─────────────────────────────────────────────────────────────────────
 app.use(notFound);

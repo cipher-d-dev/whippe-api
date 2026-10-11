@@ -13,6 +13,11 @@ const envSchema = z.object({
   // Frontend URL — used for OAuth redirects
   FRONTEND_URL: z.string().url().default('http://localhost:3000'),
 
+  // Office geofence — DAAR Communications HQ
+  OFFICE_LAT: z.coerce.number({ required_error: 'OFFICE_LAT is required' }),
+  OFFICE_LNG: z.coerce.number({ required_error: 'OFFICE_LNG is required' }),
+  OFFICE_RADIUS_METERS: z.coerce.number().positive().default(100),
+
   // Google OAuth
   GOOGLE_CLIENT_ID: z.string().min(1, 'GOOGLE_CLIENT_ID is required'),
   GOOGLE_CLIENT_SECRET: z.string().min(1, 'GOOGLE_CLIENT_SECRET is required'),

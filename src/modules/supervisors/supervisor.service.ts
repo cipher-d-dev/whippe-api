@@ -122,6 +122,15 @@ export async function updateSupervisor(
   const supervisor = await Supervisor.findByIdAndUpdate(id, input, { new: true });
   if (!supervisor) throw createError('Supervisor not found.', 404);
 
+  // When a supervisor is deactivated, clear their intern assignments so HR
+  // can see clearly which interns are now unassigned and need reassignment.
+  if (input.isActive === false) {
+    await Intern.updateMany(
+      { supervisor: new mongoose.Types.ObjectId(id) },
+      { $unset: { supervisor: 1 } },
+    );
+  }
+
   return supervisor;
 }
 
