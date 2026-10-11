@@ -8,33 +8,40 @@ import {
   getMyInternRecordHandler,
   getInternByIdHandler,
   updateInternHandler,
+  assignDepartmentHandler,
+  removeDepartmentHandler,
+  assignSupervisorHandler,
+  removeSupervisorHandler,
 } from './intern.controller';
 
 const router = Router();
 
-// All intern routes require authentication
 router.use(authenticate);
 
 // ─── HR only ──────────────────────────────────────────────────────────────────
 
-// POST /api/v1/interns
 router.post('/', authorize(Role.HR), createInternHandler);
-
-// GET /api/v1/interns
 router.get('/', authorize(Role.HR), listInternsHandler);
 
-// ─── Intern: own record ───────────────────────────────────────────────────────
-// Must be declared before /:id to avoid route conflict
+// ─── Intern: own record (must be before /:id) ─────────────────────────────────
 
-// GET /api/v1/interns/me
 router.get('/me', authorize(Role.INTERN), getMyInternRecordHandler);
 
 // ─── HR or Intern (ownership enforced in controller) ─────────────────────────
 
-// GET /api/v1/interns/:id
 router.get('/:id', authorize(Role.HR, Role.INTERN), getInternByIdHandler);
-
-// PATCH /api/v1/interns/:id
 router.patch('/:id', authorize(Role.HR, Role.INTERN), updateInternHandler);
+
+// ─── Assignment endpoints — HR only ───────────────────────────────────────────
+
+// PUT /api/v1/interns/:id/department  — assign
+// DELETE /api/v1/interns/:id/department — remove
+router.put('/:id/department', authorize(Role.HR), assignDepartmentHandler);
+router.delete('/:id/department', authorize(Role.HR), removeDepartmentHandler);
+
+// PUT /api/v1/interns/:id/supervisor  — assign
+// DELETE /api/v1/interns/:id/supervisor — remove
+router.put('/:id/supervisor', authorize(Role.HR), assignSupervisorHandler);
+router.delete('/:id/supervisor', authorize(Role.HR), removeSupervisorHandler);
 
 export default router;

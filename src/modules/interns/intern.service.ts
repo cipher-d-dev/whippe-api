@@ -21,11 +21,8 @@ export async function createIntern(
     throw createError('Invalid userId.', 400);
   }
 
-  // The linked user must exist and be an intern account
   const user = await User.findById(input.userId);
-  if (!user) {
-    throw createError('User not found.', 404);
-  }
+  if (!user) throw createError('User not found.', 404);
 
   if (user.role !== Role.INTERN) {
     throw createError('An intern record can only be created for a user with the INTERN role.', 400);
@@ -35,13 +32,10 @@ export async function createIntern(
     throw createError('An intern record can only be created for an active (HR-verified) account.', 409);
   }
 
-  // Prevent duplicate intern records for the same user
   const existing = await Intern.findOne({ user: input.userId });
-  if (existing) {
-    throw createError('An intern record already exists for this user.', 409);
-  }
+  if (existing) throw createError('An intern record already exists for this user.', 409);
 
-  const intern = await Intern.create({
+  return Intern.create({
     user: new mongoose.Types.ObjectId(input.userId),
     firstName: input.firstName,
     lastName: input.lastName,
@@ -56,8 +50,6 @@ export async function createIntern(
     endDate: input.endDate,
     createdBy: new mongoose.Types.ObjectId(hrUserId),
   });
-
-  return intern;
 }
 
 // ─── List ─────────────────────────────────────────────────────────────────────
@@ -69,7 +61,6 @@ export async function listInterns(
   const skip = (page - 1) * limit;
 
   const filter: Record<string, unknown> = {};
-
   if (status) filter['status'] = status;
   if (internshipType) filter['internshipType'] = internshipType;
   if (department && mongoose.isValidObjectId(department)) {
@@ -78,8 +69,6 @@ export async function listInterns(
   if (supervisor && mongoose.isValidObjectId(supervisor)) {
     filter['supervisor'] = new mongoose.Types.ObjectId(supervisor);
   }
-
-  // Basic name/institution search
   if (search) {
     const regex = new RegExp(search, 'i');
     filter['$or'] = [
@@ -95,51 +84,40 @@ export async function listInterns(
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
-      .populate('user', 'email role status'),
+      .populate('user', 'email role status')
+      .populate('department', 'name subsidiary')
+      .populate('supervisor', 'firstName lastName'),
     Intern.countDocuments(filter),
   ]);
 
-  return {
-    data,
-    total,
-    page,
-    limit,
-    totalPages: Math.ceil(total / limit),
-  };
+  return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
 }
 
 // ─── Get by ID ────────────────────────────────────────────────────────────────
 
 export async function getInternById(id: string): Promise<IInternDocument> {
-  if (!mongoose.isValidObjectId(id)) {
-    throw createError('Invalid intern ID.', 400);
-  }
+  if (!mongoose.isValidObjectId(id)) throw createError('Invalid intern ID.', 400);
 
-  const intern = await Intern.findById(id).populate('user', 'email role status');
-  if (!intern) {
-    throw createError('Intern not found.', 404);
-  }
+  const intern = await Intern.findById(id)
+    .populate('user', 'email role status')
+    .populate('department', 'name subsidiary')
+    .populate('supervisor', 'firstName lastName');
 
+  if (!intern) throw createError('Intern not found.', 404);
   return intern;
 }
 
 // ─── Get by user ID ───────────────────────────────────────────────────────────
-// Used when an intern looks up their own record via their account ID.
 
 export async function getInternByUserId(userId: string): Promise<IInternDocument> {
-  if (!mongoose.isValidObjectId(userId)) {
-    throw createError('Invalid user ID.', 400);
-  }
+  if (!mongoose.isValidObjectId(userId)) throw createError('Invalid user ID.', 400);
 
-  const intern = await Intern.findOne({ user: userId }).populate(
-    'user',
-    'email role status',
-  );
+  const intern = await Intern.findOne({ user: userId })
+    .populate('user', 'email role status')
+    .populate('department', 'name subsidiary')
+    .populate('supervisor', 'firstName lastName');
 
-  if (!intern) {
-    throw createError('Intern record not found for this account.', 404);
-  }
-
+  if (!intern) throw createError('Intern record not found for this account.', 404);
   return intern;
 }
 
@@ -150,21 +128,14 @@ export async function updateIntern(
   input: UpdateInternInput,
   actorRole: Role,
 ): Promise<IInternDocument> {
-  if (!mongoose.isValidObjectId(id)) {
-    throw createError('Invalid intern ID.', 400);
-  }
+  if (!mongoose.isValidObjectId(id)) throw createError('Invalid intern ID.', 400);
 
   const intern = await Intern.findById(id);
-  if (!intern) {
-    throw createError('Intern not found.', 404);
-  }
+  if (!intern) throw createError('Intern not found.', 404);
 
-  // Interns may only update their own permitted fields
   if (actorRole === Role.INTERN) {
-    const attemptedFields = Object.keys(input) as (keyof UpdateInternInput)[];
-    const forbidden = attemptedFields.filter(
-      (f) => !INTERN_PERMITTED_UPDATE_FIELDS.includes(f),
-    );
+    const attempted = Object.keys(input) as (keyof UpdateInternInput)[];
+    const forbidden = attempted.filter((f) => !INTERN_PERMITTED_UPDATE_FIELDS.includes(f));
     if (forbidden.length > 0) {
       throw createError(
         `Interns may only update: ${INTERN_PERMITTED_UPDATE_FIELDS.join(', ')}.`,
@@ -175,6 +146,71 @@ export async function updateIntern(
 
   Object.assign(intern, input);
   await intern.save();
+  return intern;
+}
 
+// ─── Assign department ────────────────────────────────────────────────────────
+
+export async function assignDepartment(
+  internId: string,
+  departmentId: string,
+): Promise<IInternDocument> {
+  if (!mongoose.isValidObjectId(internId)) throw createError('Invalid intern ID.', 400);
+  if (!mongoose.isValidObjectId(departmentId)) throw createError('Invalid department ID.', 400);
+
+  const intern = await Intern.findByIdAndUpdate(
+    internId,
+    { department: new mongoose.Types.ObjectId(departmentId) },
+    { new: true },
+  ).populate('department', 'name subsidiary');
+
+  if (!intern) throw createError('Intern not found.', 404);
+  return intern;
+}
+
+// ─── Assign supervisor ────────────────────────────────────────────────────────
+
+export async function assignSupervisor(
+  internId: string,
+  supervisorId: string,
+): Promise<IInternDocument> {
+  if (!mongoose.isValidObjectId(internId)) throw createError('Invalid intern ID.', 400);
+  if (!mongoose.isValidObjectId(supervisorId)) throw createError('Invalid supervisor ID.', 400);
+
+  const intern = await Intern.findByIdAndUpdate(
+    internId,
+    { supervisor: new mongoose.Types.ObjectId(supervisorId) },
+    { new: true },
+  ).populate('supervisor', 'firstName lastName');
+
+  if (!intern) throw createError('Intern not found.', 404);
+  return intern;
+}
+
+// ─── Remove department assignment ─────────────────────────────────────────────
+
+export async function removeDepartment(internId: string): Promise<IInternDocument> {
+  if (!mongoose.isValidObjectId(internId)) throw createError('Invalid intern ID.', 400);
+
+  const intern = await Intern.findByIdAndUpdate(
+    internId,
+    { $unset: { department: 1 } },
+    { new: true },
+  );
+  if (!intern) throw createError('Intern not found.', 404);
+  return intern;
+}
+
+// ─── Remove supervisor assignment ─────────────────────────────────────────────
+
+export async function removeSupervisor(internId: string): Promise<IInternDocument> {
+  if (!mongoose.isValidObjectId(internId)) throw createError('Invalid intern ID.', 400);
+
+  const intern = await Intern.findByIdAndUpdate(
+    internId,
+    { $unset: { supervisor: 1 } },
+    { new: true },
+  );
+  if (!intern) throw createError('Intern not found.', 404);
   return intern;
 }

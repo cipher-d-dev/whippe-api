@@ -53,13 +53,17 @@ app.get('/health', (_req: Request, res: Response) => {
 import authRouter from './modules/auth/auth.routes';
 import usersRouter from './modules/users/users.routes';
 import internsRouter from './modules/interns/interns.routes';
+import departmentsRouter from './modules/departments/departments.routes';
+import supervisorsRouter from './modules/supervisors/supervisors.routes';
 
 app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/users', usersRouter);
 app.use('/api/v1/interns', internsRouter);
+app.use('/api/v1/departments', departmentsRouter);
+app.use('/api/v1/supervisors', supervisorsRouter);
 
 // Future domain routers registered here in later phases:
-// app.use('/api/v1/departments', departmentsRouter);
+// app.use('/api/v1/attendance', attendanceRouter);
 
 // ─── 404 ─────────────────────────────────────────────────────────────────────
 app.use(notFound);
