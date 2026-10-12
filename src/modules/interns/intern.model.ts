@@ -24,6 +24,10 @@ export interface IIntern {
   startDate?: Date;
   endDate?: Date;
 
+  // ── Completion (Phase 11) ─────────────────────────────────────────────────
+  completedAt?: Date;       // Timestamp HR closed the internship
+  completionNote?: string;  // Optional HR note at exit
+
   // ── Organisational relationships (populated in Phase 4) ───────────────────
   department?: mongoose.Types.ObjectId;
   supervisor?: mongoose.Types.ObjectId;
@@ -110,6 +114,13 @@ const internSchema = new Schema<IInternDocument, IInternModel>(
     startDate: Date,
     endDate: Date,
 
+    // ── Completion ────────────────────────────────────────────────────────────
+    completedAt: Date,
+    completionNote: {
+      type: String,
+      trim: true,
+    },
+
     // ── Relationships ─────────────────────────────────────────────────────────
     department: {
       type: Schema.Types.ObjectId,
@@ -145,7 +156,9 @@ internSchema.index({ status: 1 });
 internSchema.index({ internshipType: 1 });
 internSchema.index({ department: 1 });
 internSchema.index({ supervisor: 1 });
-internSchema.index({ endDate: 1 });   // for upcoming completion queries (Phase 11)
+internSchema.index({ endDate: 1 });         // upcoming completion queries
+internSchema.index({ completedAt: -1 });    // listing completed internships by date
+internSchema.index({ supervisor: 1, status: 1 }); // filter assigned interns by status
 
 // ─── Export ───────────────────────────────────────────────────────────────────
 
