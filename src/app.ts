@@ -59,6 +59,7 @@ import attendanceRouter from './modules/attendance/attendance.routes';
 import tasksRouter from './modules/tasks/tasks.routes';
 import submissionsRouter from './modules/submissions/submissions.routes';
 import reportsRouter from './modules/reports/reports.routes';
+import evaluationsRouter from './modules/evaluations/evaluations.routes';
 
 app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/users', usersRouter);
@@ -69,9 +70,10 @@ app.use('/api/v1/attendance', attendanceRouter);
 app.use('/api/v1/tasks', tasksRouter);
 app.use('/api/v1/submissions', submissionsRouter);
 app.use('/api/v1/reports', reportsRouter);
+app.use('/api/v1/evaluations', evaluationsRouter);
 
 // Future domain routers registered here in later phases:
-// app.use('/api/v1/evaluations', evaluationsRouter);
+// app.use('/api/v1/notifications', notificationsRouter);
 
 // ─── 404 ─────────────────────────────────────────────────────────────────────
 app.use(notFound);
