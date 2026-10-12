@@ -56,6 +56,9 @@ import internsRouter from './modules/interns/interns.routes';
 import departmentsRouter from './modules/departments/departments.routes';
 import supervisorsRouter from './modules/supervisors/supervisors.routes';
 import attendanceRouter from './modules/attendance/attendance.routes';
+import tasksRouter from './modules/tasks/tasks.routes';
+import submissionsRouter from './modules/submissions/submissions.routes';
+import reportsRouter from './modules/reports/reports.routes';
 
 app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/users', usersRouter);
@@ -63,9 +66,12 @@ app.use('/api/v1/interns', internsRouter);
 app.use('/api/v1/departments', departmentsRouter);
 app.use('/api/v1/supervisors', supervisorsRouter);
 app.use('/api/v1/attendance', attendanceRouter);
+app.use('/api/v1/tasks', tasksRouter);
+app.use('/api/v1/submissions', submissionsRouter);
+app.use('/api/v1/reports', reportsRouter);
 
 // Future domain routers registered here in later phases:
-// app.use('/api/v1/tasks', tasksRouter);
+// app.use('/api/v1/evaluations', evaluationsRouter);
 
 // ─── 404 ─────────────────────────────────────────────────────────────────────
 app.use(notFound);

@@ -1,0 +1,24 @@
+export enum TaskStatus {
+  TODO = 'TODO',
+  IN_PROGRESS = 'IN_PROGRESS',
+  SUBMITTED = 'SUBMITTED',
+  CHANGES_REQUESTED = 'CHANGES_REQUESTED',
+  COMPLETED = 'COMPLETED',
+}
+
+export enum SubmissionStatus {
+  PENDING_REVIEW = 'PENDING_REVIEW',
+  CHANGES_REQUESTED = 'CHANGES_REQUESTED',
+  APPROVED = 'APPROVED',
+}
+
+export enum ReportType {
+  DAILY = 'DAILY',
+  WEEKLY = 'WEEKLY',
+}
+
+export enum ReportStatus {
+  DRAFT = 'DRAFT',
+  SUBMITTED = 'SUBMITTED',
+  REVIEWED = 'REVIEWED',
+}
