@@ -1544,6 +1544,48 @@ Returns the Appwrite endpoint and a pre-generated file ID. Client uploads the fi
 }
 ```
 
+**Frontend upload flow using the Appwrite client SDK (`appwrite` npm package):**
+
+```js
+import { Client, Storage } from 'appwrite';
+
+// 1. Fetch upload info from the Whippe API
+const { data: { uploadInfo } } = await api.get(`/documents/${docId}/upload-info`);
+
+// 2. Initialise Appwrite client (browser-side)
+const client = new Client()
+  .setEndpoint(uploadInfo.endpoint)
+  .setProject(uploadInfo.projectId);
+
+const storage = new Storage(client);
+
+// 3. Upload directly to Appwrite
+// The SDK automatically splits large files into 5MB chunks and retries
+// failed chunks — no extra code needed for chunked/resumable uploads.
+// The onProgress callback gives you 0–100 progress for a progress bar.
+await storage.createFile(
+  uploadInfo.bucketId,
+  uploadInfo.fileId,   // use the pre-generated ID from the server
+  file,                // File object from <input type="file">
+  [],                  // permissions — leave empty, bucket controls access
+  (progress) => {
+    console.log(`${progress.progress}%`);
+  }
+);
+
+// 4. Confirm the upload with the Whippe API
+await api.patch(`/documents/${docId}/upload`, {
+  storageKey: uploadInfo.fileId,
+  originalFilename: file.name,
+  contentType: file.type,
+  fileSizeBytes: file.size,
+});
+```
+
+> **Important:** Always use the `fileId` returned by the server in step 1. Do not generate your own — the server needs to know the key before the upload happens so it can store it securely with `select: false`.
+
+> **On upload failure:** Show a retry button and re-run from step 1 (fresh `fileId`). Files in the intern management context are small documents (PDFs, images) — a full retry is acceptable UX. Cross-session resumability is not implemented.
+
 ---
 
 ### PATCH /documents/:id/upload
