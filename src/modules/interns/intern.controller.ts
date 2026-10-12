@@ -107,7 +107,8 @@ export async function assignDepartmentHandler(
 ): Promise<void> {
   try {
     const { params, body } = assignSchema.parse({ params: req.params, body: req.body });
-    const intern = await internService.assignDepartment(params.id, body.departmentId);
+    const actor = getAuthUser(req);
+    const intern = await internService.assignDepartment(params.id, body.departmentId, actor.id);
     res.status(200).json({ success: true, message: 'Department assigned.', data: { intern } });
   } catch (err) { next(err); }
 }
@@ -116,7 +117,8 @@ export async function removeDepartmentHandler(
   req: Request, res: Response, next: NextFunction,
 ): Promise<void> {
   try {
-    const intern = await internService.removeDepartment(req.params.id);
+    const actor = getAuthUser(req);
+    const intern = await internService.removeDepartment(req.params.id, actor.id);
     res.status(200).json({ success: true, message: 'Department removed.', data: { intern } });
   } catch (err) { next(err); }
 }
@@ -133,7 +135,8 @@ export async function assignSupervisorHandler(
 ): Promise<void> {
   try {
     const { params, body } = assignSupervisorSchema.parse({ params: req.params, body: req.body });
-    const intern = await internService.assignSupervisor(params.id, body.supervisorId);
+    const actor = getAuthUser(req);
+    const intern = await internService.assignSupervisor(params.id, body.supervisorId, actor.id);
     res.status(200).json({ success: true, message: 'Supervisor assigned.', data: { intern } });
   } catch (err) { next(err); }
 }
@@ -142,7 +145,8 @@ export async function removeSupervisorHandler(
   req: Request, res: Response, next: NextFunction,
 ): Promise<void> {
   try {
-    const intern = await internService.removeSupervisor(req.params.id);
+    const actor = getAuthUser(req);
+    const intern = await internService.removeSupervisor(req.params.id, actor.id);
     res.status(200).json({ success: true, message: 'Supervisor removed.', data: { intern } });
   } catch (err) { next(err); }
 }
