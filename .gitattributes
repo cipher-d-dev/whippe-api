@@ -1,0 +1,16 @@
+# Normalize line endings to LF in the repository
+# Windows developers will still work with their native CRLF locally,
+# but the repo always stores LF — eliminating CRLF diff noise.
+
+* text=auto eol=lf
+
+# Explicitly mark binary files so git never tries to convert them
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.pdf  binary
+*.zip  binary
+*.tar  binary
+*.gz   binary

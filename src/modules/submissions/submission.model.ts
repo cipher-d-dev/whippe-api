@@ -36,5 +36,7 @@ const submissionSchema = new Schema<ISubmissionDocument, ISubmissionModel>(
 
 submissionSchema.index({ task: 1 });
 submissionSchema.index({ intern: 1, status: 1 });
+submissionSchema.index({ task: 1, intern: 1 }); // supervisor fetches submissions per task
+submissionSchema.index({ task: 1, intern: 1 }); // supervisor fetches submissions per task
 
 export const Submission = mongoose.model<ISubmissionDocument, ISubmissionModel>('Submission', submissionSchema);

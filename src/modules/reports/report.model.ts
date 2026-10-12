@@ -44,5 +44,6 @@ const reportSchema = new Schema<IReportDocument, IReportModel>(
 
 reportSchema.index({ intern: 1, status: 1 });
 reportSchema.index({ intern: 1, periodStart: -1 });
+reportSchema.index({ reviewedBy: 1 }); // HR/supervisor: find reports reviewed by a user
 
 export const Report = mongoose.model<IReportDocument, IReportModel>('Report', reportSchema);

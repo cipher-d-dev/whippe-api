@@ -12,6 +12,8 @@ import {
   registerUploadHandler,
   reviewDocumentHandler,
   getInternChecklistHandler,
+  getUploadInfoHandler,
+  downloadDocumentHandler,
 } from './document.controller';
 
 const router = Router();
@@ -35,6 +37,13 @@ router.patch('/:id/upload', authorize(Role.HR, Role.INTERN), registerUploadHandl
 
 // HR verifies or rejects
 router.patch('/:id/review', authorize(Role.HR), reviewDocumentHandler);
+
+// ─── Appwrite upload / download ───────────────────────────────────────────────
+// GET upload info — intern gets endpoint + pre-generated fileId to upload with
+router.get('/:id/upload-info', authorize(Role.HR, Role.INTERN), getUploadInfoHandler);
+
+// Download file — server proxies from Appwrite, never exposes storageKey
+router.get('/:id/download', authorize(Role.HR, Role.SUPERVISOR, Role.INTERN), downloadDocumentHandler);
 
 // ─── Intern checklist ─────────────────────────────────────────────────────────
 // GET /api/v1/documents/checklist/:internId

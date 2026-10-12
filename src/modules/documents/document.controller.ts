@@ -83,3 +83,26 @@ export async function getInternChecklistHandler(req: Request, res: Response, nex
     res.status(200).json({ success: true, data: { checklist } });
   } catch (err) { next(err); }
 }
+
+export async function getUploadInfoHandler(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const uploadInfo = await documentService.getDocumentUploadInfo(req.params.id);
+    res.status(200).json({ success: true, data: { uploadInfo } });
+  } catch (err) { next(err); }
+}
+
+export async function downloadDocumentHandler(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const actor = getAuthUser(req);
+    const { buffer, contentType, filename } = await documentService.downloadDocument(
+      req.params.id,
+      actor.id,
+      actor.role,
+    );
+
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Length', buffer.length);
+    res.status(200).send(buffer);
+  } catch (err) { next(err); }
+}

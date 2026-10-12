@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import rateLimit from 'express-rate-limit';
 import { authenticate } from '../../middleware/auth';
 import {
   signupHandler,
@@ -14,16 +15,26 @@ import {
 
 const router = Router();
 
+// Auth-specific rate limit: 15 attempts per 15 minutes per IP.
+// Much stricter than the global 200/15min to slow down brute-force attacks.
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 15,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Too many attempts. Please try again in 15 minutes.' },
+});
+
 // ─── Password auth (public) ───────────────────────────────────────────────────
 
 // POST /api/v1/auth/signup
-router.post('/signup', signupHandler);
+router.post('/signup', authLimiter, signupHandler);
 
 // POST /api/v1/auth/login
-router.post('/login', loginHandler);
+router.post('/login', authLimiter, loginHandler);
 
 // POST /api/v1/auth/refresh  — reads refresh token from HTTP-only cookie
-router.post('/refresh', refreshHandler);
+router.post('/refresh', authLimiter, refreshHandler);
 
 // ─── Google OAuth ─────────────────────────────────────────────────────────────
 

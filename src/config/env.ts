@@ -4,31 +4,36 @@ import 'dotenv/config';
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   PORT: z.coerce.number().int().positive().default(5000),
+
+  // ── Database ──────────────────────────────────────────────────────────────
   MONGODB_URI: z.string().min(1, 'MONGODB_URI is required'),
+
+  // ── Auth ──────────────────────────────────────────────────────────────────
   JWT_SECRET: z.string().min(32, 'JWT_SECRET must be at least 32 characters'),
 
-  // CORS — comma-separated list of allowed origins
+  // ── CORS ──────────────────────────────────────────────────────────────────
   CORS_ORIGIN: z.string().default('http://localhost:3000'),
 
-  // Frontend URL — used for OAuth redirects
+  // ── Frontend URL (OAuth redirects) ────────────────────────────────────────
   FRONTEND_URL: z.string().url().default('http://localhost:3000'),
 
-  // Office geofence — DAAR Communications HQ
+  // ── Office geofence — DAAR Communications HQ ─────────────────────────────
   OFFICE_LAT: z.coerce.number({ required_error: 'OFFICE_LAT is required' }),
   OFFICE_LNG: z.coerce.number({ required_error: 'OFFICE_LNG is required' }),
   OFFICE_RADIUS_METERS: z.coerce.number().positive().default(100),
 
-  // Google OAuth
+  // ── Google OAuth ──────────────────────────────────────────────────────────
   GOOGLE_CLIENT_ID: z.string().min(1, 'GOOGLE_CLIENT_ID is required'),
   GOOGLE_CLIENT_SECRET: z.string().min(1, 'GOOGLE_CLIENT_SECRET is required'),
   GOOGLE_CALLBACK_URL: z.string().url('GOOGLE_CALLBACK_URL must be a valid URL'),
 
-  // Object storage (required when uploading files — not strictly needed for Phase 0)
-  OBJECT_STORAGE_ENDPOINT: z.string().optional(),
-  OBJECT_STORAGE_BUCKET: z.string().optional(),
-  OBJECT_STORAGE_ACCESS_KEY: z.string().optional(),
-  OBJECT_STORAGE_SECRET_KEY: z.string().optional(),
-  OBJECT_STORAGE_REGION: z.string().optional(),
+  // ── Appwrite Storage ──────────────────────────────────────────────────────
+  // Required once file uploads are live. Leave as empty strings in dev
+  // until a real Appwrite project is configured.
+  APPWRITE_ENDPOINT: z.string().url('APPWRITE_ENDPOINT must be a valid URL').optional(),
+  APPWRITE_PROJECT_ID: z.string().optional(),
+  APPWRITE_BUCKET_ID: z.string().optional(),
+  APPWRITE_API_KEY: z.string().optional(),
 });
 
 function validateEnv() {
@@ -42,7 +47,24 @@ function validateEnv() {
     process.exit(1);
   }
 
-  return result.data;
+  const data = result.data;
+
+  // In production, Appwrite vars must all be present
+  if (data.NODE_ENV === 'production') {
+    const missing: string[] = [];
+    if (!data.APPWRITE_ENDPOINT) missing.push('APPWRITE_ENDPOINT');
+    if (!data.APPWRITE_PROJECT_ID) missing.push('APPWRITE_PROJECT_ID');
+    if (!data.APPWRITE_BUCKET_ID) missing.push('APPWRITE_BUCKET_ID');
+    if (!data.APPWRITE_API_KEY) missing.push('APPWRITE_API_KEY');
+
+    if (missing.length > 0) {
+      console.error('❌  Missing required production environment variables:');
+      missing.forEach((v) => console.error(`   ${v}`));
+      process.exit(1);
+    }
+  }
+
+  return data;
 }
 
 export const env = validateEnv();
