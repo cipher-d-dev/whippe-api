@@ -12,6 +12,11 @@ import {
   ListDocumentsQuery,
 } from './document.schema';
 import { PaginatedResponse } from '../users/user.types';
+import { createNotification } from '../notifications/notification.service';
+import { NotificationType } from '../notifications/notification.types';
+import { logAction } from '../timeline/audit-log.service';
+import { AuditAction } from '../timeline/audit-log.types';
+import { generateUploadInfo, downloadFile, UploadInfo } from '../../lib/appwrite';
 
 // ─── Requirements ─────────────────────────────────────────────────────────────
 
@@ -177,6 +182,26 @@ export async function reviewDocument(
   if (input.rejectionReason) doc.rejectionReason = input.rejectionReason;
   if (input.notes) doc.notes = input.notes;
   await doc.save();
+
+  // Notify the intern that their document status has changed
+  const internRecord = await Intern.findById(doc.intern);
+  if (internRecord) {
+    await createNotification(
+      internRecord.user.toString(),
+      NotificationType.DOCUMENT_STATUS_CHANGED,
+      'Document status updated',
+      `The status of your document "${doc.label}" has been updated to: ${input.status.replace(/_/g, ' ').toLowerCase()}.`,
+      { kind: 'Document', id: (doc._id as mongoose.Types.ObjectId).toString() },
+    ).catch(() => {});
+  }
+
+  await logAction({
+    action: AuditAction.DOCUMENT_REVIEWED,
+    performedBy: hrUserId,
+    targetIntern: doc.intern.toString(),
+    detail: `"${doc.label}" → ${input.status}${input.rejectionReason ? `: ${input.rejectionReason}` : ''}`,
+  }).catch(() => {});
+
   return doc;
 }
 
@@ -200,4 +225,55 @@ export async function getInternDocumentChecklist(internId: string): Promise<{
       (d) => d.requirement.toString() === (req._id as mongoose.Types.ObjectId).toString(),
     ) ?? null,
   }));
+}
+
+
+// ─── Get Appwrite upload info ─────────────────────────────────────────────────
+// Returns the endpoint, project, bucket, and a pre-generated fileId that the
+// client uses to upload directly to Appwrite via the client SDK.
+// The document record is NOT updated here — the client confirms via registerUpload.
+
+export async function getDocumentUploadInfo(id: string): Promise<UploadInfo> {
+  if (!mongoose.isValidObjectId(id)) throw createError('Invalid document ID.', 400);
+
+  const doc = await DocumentRecord.findById(id);
+  if (!doc) throw createError('Document record not found.', 404);
+
+  return generateUploadInfo();
+}
+
+// ─── Download document file ───────────────────────────────────────────────────
+// Fetches the file from Appwrite and returns its content + metadata for streaming.
+// storageKey is loaded with select: false — never returned to the client directly.
+
+export async function downloadDocument(
+  id: string,
+  actorUserId: string,
+  actorRole: Role,
+): Promise<{ buffer: Buffer; contentType: string; filename: string }> {
+  if (!mongoose.isValidObjectId(id)) throw createError('Invalid document ID.', 400);
+
+  // Explicitly select storageKey — it is select:false on the schema
+  const doc = await DocumentRecord.findById(id).select('+storageKey');
+  if (!doc) throw createError('Document record not found.', 404);
+
+  // Interns may only download their own documents
+  if (actorRole === Role.INTERN) {
+    const internRecord = await Intern.findOne({ user: actorUserId });
+    if (!internRecord || doc.intern.toString() !== (internRecord._id as mongoose.Types.ObjectId).toString()) {
+      throw createError('You do not have permission to download this document.', 403);
+    }
+  }
+
+  if (!doc.storageKey) {
+    throw createError('No file has been uploaded for this document yet.', 404);
+  }
+
+  const buffer = await downloadFile(doc.storageKey);
+
+  return {
+    buffer,
+    contentType: doc.contentType ?? 'application/octet-stream',
+    filename: doc.originalFilename ?? 'document',
+  };
 }

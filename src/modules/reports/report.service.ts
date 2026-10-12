@@ -11,6 +11,8 @@ import {
   ListReportsQuery,
 } from './report.schema';
 import { PaginatedResponse } from '../users/user.types';
+import { createNotification } from '../notifications/notification.service';
+import { NotificationType } from '../notifications/notification.types';
 
 // ─── Create (intern only — saved as DRAFT) ────────────────────────────────────
 
@@ -131,5 +133,20 @@ export async function reviewReport(
   report.reviewedBy = new mongoose.Types.ObjectId(actorUserId);
   report.reviewedAt = new Date();
   await report.save();
+
+  // Notify the intern that their report has been reviewed
+  const internRecord = await Intern.findById(report.intern);
+  if (internRecord) {
+    await createNotification(
+      internRecord.user.toString(),
+      NotificationType.REPORT_REVIEWED,
+      'Report reviewed',
+      `Your report has been reviewed. ${input.feedback ? `Feedback: ${input.feedback}` : ''}`.trim(),
+      { kind: 'Report', id: (report._id as mongoose.Types.ObjectId).toString() },
+    ).catch(() => {
+      // Notification failure must not block the review action
+    });
+  }
+
   return report;
 }

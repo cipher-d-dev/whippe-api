@@ -10,6 +10,10 @@ import {
   INTERN_PERMITTED_UPDATE_FIELDS,
 } from './intern.schema';
 import { PaginatedResponse } from '../users/user.types';
+import { createNotification } from '../notifications/notification.service';
+import { NotificationType } from '../notifications/notification.types';
+import { logAction } from '../timeline/audit-log.service';
+import { AuditAction } from '../timeline/audit-log.types';
 
 // ─── Create ───────────────────────────────────────────────────────────────────
 
@@ -154,6 +158,7 @@ export async function updateIntern(
 export async function assignDepartment(
   internId: string,
   departmentId: string,
+  hrUserId: string,
 ): Promise<IInternDocument> {
   if (!mongoose.isValidObjectId(internId)) throw createError('Invalid intern ID.', 400);
   if (!mongoose.isValidObjectId(departmentId)) throw createError('Invalid department ID.', 400);
@@ -165,6 +170,14 @@ export async function assignDepartment(
   ).populate('department', 'name subsidiary');
 
   if (!intern) throw createError('Intern not found.', 404);
+
+  await logAction({
+    action: AuditAction.DEPARTMENT_ASSIGNED,
+    performedBy: hrUserId,
+    targetIntern: internId,
+    detail: `Department ${departmentId} assigned`,
+  }).catch(() => {});
+
   return intern;
 }
 
@@ -173,6 +186,7 @@ export async function assignDepartment(
 export async function assignSupervisor(
   internId: string,
   supervisorId: string,
+  hrUserId: string,
 ): Promise<IInternDocument> {
   if (!mongoose.isValidObjectId(internId)) throw createError('Invalid intern ID.', 400);
   if (!mongoose.isValidObjectId(supervisorId)) throw createError('Invalid supervisor ID.', 400);
@@ -184,12 +198,29 @@ export async function assignSupervisor(
   ).populate('supervisor', 'firstName lastName');
 
   if (!intern) throw createError('Intern not found.', 404);
+
+  // Notify the intern that a supervisor has been assigned to them
+  await createNotification(
+    intern.user.toString(),
+    NotificationType.SUPERVISOR_ASSIGNED,
+    'Supervisor assigned',
+    'A supervisor has been assigned to you. Check your profile for details.',
+    { kind: 'Supervisor', id: supervisorId },
+  ).catch(() => {});
+
+  await logAction({
+    action: AuditAction.SUPERVISOR_ASSIGNED,
+    performedBy: hrUserId,
+    targetIntern: internId,
+    detail: `Supervisor ${supervisorId} assigned`,
+  }).catch(() => {});
+
   return intern;
 }
 
 // ─── Remove department assignment ─────────────────────────────────────────────
 
-export async function removeDepartment(internId: string): Promise<IInternDocument> {
+export async function removeDepartment(internId: string, hrUserId: string): Promise<IInternDocument> {
   if (!mongoose.isValidObjectId(internId)) throw createError('Invalid intern ID.', 400);
 
   const intern = await Intern.findByIdAndUpdate(
@@ -198,12 +229,19 @@ export async function removeDepartment(internId: string): Promise<IInternDocumen
     { new: true },
   );
   if (!intern) throw createError('Intern not found.', 404);
+
+  await logAction({
+    action: AuditAction.DEPARTMENT_REMOVED,
+    performedBy: hrUserId,
+    targetIntern: internId,
+  }).catch(() => {});
+
   return intern;
 }
 
 // ─── Remove supervisor assignment ─────────────────────────────────────────────
 
-export async function removeSupervisor(internId: string): Promise<IInternDocument> {
+export async function removeSupervisor(internId: string, hrUserId: string): Promise<IInternDocument> {
   if (!mongoose.isValidObjectId(internId)) throw createError('Invalid intern ID.', 400);
 
   const intern = await Intern.findByIdAndUpdate(
@@ -212,5 +250,12 @@ export async function removeSupervisor(internId: string): Promise<IInternDocumen
     { new: true },
   );
   if (!intern) throw createError('Intern not found.', 404);
+
+  await logAction({
+    action: AuditAction.SUPERVISOR_REMOVED,
+    performedBy: hrUserId,
+    targetIntern: internId,
+  }).catch(() => {});
+
   return intern;
 }

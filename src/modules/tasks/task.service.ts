@@ -7,6 +7,8 @@ import { Role } from '../auth/auth.types';
 import { createError } from '../../middleware/error-handler';
 import { CreateTaskInput, UpdateTaskInput, ListTasksQuery } from './task.schema';
 import { PaginatedResponse } from '../users/user.types';
+import { createNotification } from '../notifications/notification.service';
+import { NotificationType } from '../notifications/notification.types';
 
 // ─── Create ───────────────────────────────────────────────────────────────────
 
@@ -39,7 +41,7 @@ export async function createTask(
 
   if (!supervisorId) throw createError('Intern has no assigned supervisor.', 409);
 
-  return Task.create({
+  const task = await Task.create({
     title: input.title,
     description: input.description,
     intern: new mongoose.Types.ObjectId(input.internId),
@@ -47,6 +49,19 @@ export async function createTask(
     supervisor: supervisorId,
     deadline: input.deadline,
   });
+
+  // Notify the intern that a task has been assigned to them
+  await createNotification(
+    intern.user.toString(),
+    NotificationType.TASK_ASSIGNED,
+    'New task assigned',
+    `You have been assigned a new task: "${input.title}".`,
+    { kind: 'Task', id: (task._id as mongoose.Types.ObjectId).toString() },
+  ).catch(() => {
+    // Notification failure must not block the task creation
+  });
+
+  return task;
 }
 
 // ─── List ─────────────────────────────────────────────────────────────────────
@@ -141,5 +156,22 @@ export async function updateTask(
 
   Object.assign(task, input);
   await task.save();
+
+  // When a supervisor sets feedback directly on the task, notify the intern
+  if (actorRole === Role.SUPERVISOR && input.feedback) {
+    const internRecord = await Intern.findById(task.intern);
+    if (internRecord) {
+      await createNotification(
+        internRecord.user.toString(),
+        NotificationType.TASK_FEEDBACK,
+        'Feedback on your task',
+        `Your supervisor left feedback on task "${task.title}": ${input.feedback}`,
+        { kind: 'Task', id: (task._id as mongoose.Types.ObjectId).toString() },
+      ).catch(() => {
+        // Notification failure must not block the update
+      });
+    }
+  }
+
   return task;
 }

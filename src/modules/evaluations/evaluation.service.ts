@@ -11,6 +11,8 @@ import {
   ListEvaluationsQuery,
 } from './evaluation.schema';
 import { PaginatedResponse } from '../users/user.types';
+import { createNotification } from '../notifications/notification.service';
+import { NotificationType } from '../notifications/notification.types';
 
 // ─── Create (supervisor — saved as DRAFT) ────────────────────────────────────
 
@@ -160,5 +162,20 @@ export async function submitEvaluation(
   evaluation.status = EvaluationStatus.SUBMITTED;
   evaluation.submittedAt = new Date();
   await evaluation.save();
+
+  // Notify the intern that a new evaluation has been submitted for them
+  const internRecord = await Intern.findById(evaluation.intern);
+  if (internRecord) {
+    await createNotification(
+      internRecord.user.toString(),
+      NotificationType.EVALUATION_SUBMITTED,
+      'New evaluation submitted',
+      'Your supervisor has submitted a performance evaluation for you.',
+      { kind: 'Evaluation', id: (evaluation._id as mongoose.Types.ObjectId).toString() },
+    ).catch(() => {
+      // Notification failure must not block the submit action
+    });
+  }
+
   return evaluation;
 }

@@ -5,6 +5,10 @@ import { createError } from '../../middleware/error-handler';
 import { ListUsersQuery } from './users.schema';
 import { PaginatedResponse } from './user.types';
 import { IUserDocument } from './user.model';
+import { createNotification } from '../notifications/notification.service';
+import { NotificationType } from '../notifications/notification.types';
+import { logAction } from '../timeline/audit-log.service';
+import { AuditAction } from '../timeline/audit-log.types';
 
 // ─── HR verification queue ────────────────────────────────────────────────────
 // Returns paginated list of accounts pending HR verification,
@@ -101,6 +105,22 @@ export async function approveUser(
 
   await user.save();
 
+  // Notify the user that their account has been approved
+  await createNotification(
+    user.id,
+    NotificationType.ACCOUNT_APPROVED,
+    'Account approved',
+    'Your Whippe account has been approved by HR. You can now access the platform.',
+  ).catch(() => {
+    // Notification failure must not block the approval action
+  });
+
+  await logAction({
+    action: AuditAction.ACCOUNT_APPROVED,
+    performedBy: hrUserId,
+    targetUser: user.id,
+  }).catch(() => {});
+
   return user;
 }
 
@@ -133,6 +153,23 @@ export async function rejectUser(
   user.rejectionReason = reason;
 
   await user.save();
+
+  // Notify the user that their account has been rejected
+  await createNotification(
+    user.id,
+    NotificationType.ACCOUNT_REJECTED,
+    'Account not approved',
+    `Your Whippe account could not be approved. Reason: ${reason}`,
+  ).catch(() => {
+    // Notification failure must not block the rejection action
+  });
+
+  await logAction({
+    action: AuditAction.ACCOUNT_REJECTED,
+    performedBy: hrUserId,
+    targetUser: user.id,
+    detail: reason,
+  }).catch(() => {});
 
   return user;
 }

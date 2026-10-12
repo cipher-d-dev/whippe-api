@@ -61,10 +61,14 @@ import submissionsRouter from './modules/submissions/submissions.routes';
 import reportsRouter from './modules/reports/reports.routes';
 import evaluationsRouter from './modules/evaluations/evaluations.routes';
 import documentsRouter from './modules/documents/documents.routes';
+import notificationsRouter from './modules/notifications/notifications.routes';
+import timelineRouter from './modules/timeline/timeline.routes';
+import exitRouter from './modules/interns/exit.routes';
 
 app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/users', usersRouter);
 app.use('/api/v1/interns', internsRouter);
+app.use('/api/v1/interns', exitRouter);
 app.use('/api/v1/departments', departmentsRouter);
 app.use('/api/v1/supervisors', supervisorsRouter);
 app.use('/api/v1/attendance', attendanceRouter);
@@ -73,9 +77,8 @@ app.use('/api/v1/submissions', submissionsRouter);
 app.use('/api/v1/reports', reportsRouter);
 app.use('/api/v1/evaluations', evaluationsRouter);
 app.use('/api/v1/documents', documentsRouter);
-
-// Future domain routers registered here in later phases:
-// app.use('/api/v1/notifications', notificationsRouter);
+app.use('/api/v1/notifications', notificationsRouter);
+app.use('/api/v1', timelineRouter);
 
 // ─── 404 ─────────────────────────────────────────────────────────────────────
 app.use(notFound);

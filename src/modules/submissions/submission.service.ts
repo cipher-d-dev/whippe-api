@@ -6,6 +6,8 @@ import { Supervisor } from '../supervisors/supervisor.model';
 import { TaskStatus, SubmissionStatus } from '../tasks/task.types';
 import { createError } from '../../middleware/error-handler';
 import { CreateSubmissionInput, ReviewSubmissionInput } from './submission.schema';
+import { createNotification } from '../notifications/notification.service';
+import { NotificationType } from '../notifications/notification.types';
 
 export async function createSubmission(
   input: CreateSubmissionInput,
@@ -76,6 +78,35 @@ export async function reviewSubmission(
     }
     if (input.feedback) taskDoc.feedback = input.feedback;
     await taskDoc.save();
+  }
+
+  // Notify the intern of the review outcome
+  const internRecord = await Intern.findById(submission.intern);
+  if (internRecord) {
+    const notificationType =
+      input.status === SubmissionStatus.APPROVED
+        ? NotificationType.SUBMISSION_APPROVED
+        : NotificationType.SUBMISSION_CHANGES_REQUESTED;
+
+    const notificationTitle =
+      input.status === SubmissionStatus.APPROVED
+        ? 'Submission approved'
+        : 'Changes requested on your submission';
+
+    const notificationBody =
+      input.status === SubmissionStatus.APPROVED
+        ? 'Your task submission has been approved.'
+        : `Your task submission requires changes. ${input.feedback ? `Feedback: ${input.feedback}` : ''}`.trim();
+
+    await createNotification(
+      internRecord.user.toString(),
+      notificationType,
+      notificationTitle,
+      notificationBody,
+      { kind: 'Submission', id: (submission._id as mongoose.Types.ObjectId).toString() },
+    ).catch(() => {
+      // Notification failure must not block the review action
+    });
   }
 
   return submission;
