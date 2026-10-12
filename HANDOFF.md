@@ -1,5 +1,5 @@
 # WHIPPIE-API — AGENT HANDOFF DOCUMENT
-# Generated: 2026-10-12 | For use by a new Kiro instance to continue from exactly where this session left off.
+# Generated: 2026-10-12 | All backend phases complete. Next: Frontend (Whippe Web — HR dashboard).
 
 ---
 
@@ -22,7 +22,7 @@ HR approves intern accounts by visually checking name + email — no screening r
 
 GitHub: https://github.com/cipher-d-dev/whippe-api
 Branch: main
-All phases through Phase 8 are committed and pushed.
+All phases through Phase 13 are committed and pushed.
 
 ---
 
@@ -35,11 +35,13 @@ All phases through Phase 8 are committed and pushed.
 - bcryptjs (12 rounds) — password hashing
 - jsonwebtoken — JWT access + refresh tokens
 - passport + passport-google-oauth20 — Google OAuth
+- node-appwrite — Appwrite storage SDK
+- jest + ts-jest — unit tests
 - tsx — dev server
 
 ---
 
-## KEY ARCHITECTURAL DECISIONS (AGREED IN THIS SESSION)
+## KEY ARCHITECTURAL DECISIONS
 
 ### Authentication
 - JWT access token: 15min, returned in response body, client stores in memory
@@ -48,6 +50,7 @@ All phases through Phase 8 are committed and pushed.
 - Token reuse detection wipes stored hash → forces re-login
 - Google OAuth via Passport, no sessions, JWT issued on callback, redirects to FRONTEND_URL/auth/google/success#token=...
 - bcrypt cost factor 12
+- Auth routes (/signup, /login, /refresh) rate limited to 15 req/15min per IP
 
 ### Departments
 - Free-form data, not enums — HR creates departments at runtime
@@ -65,16 +68,33 @@ All phases through Phase 8 are committed and pushed.
 - HR can manually correct flagged/rejected records
 
 ### File/Document Storage
-- **USE APPWRITE STORAGE** (not AWS S3, not Cloudinary)
+- USE APPWRITE STORAGE (not AWS S3, not Cloudinary)
 - Appwrite free tier: sufficient for 100-200 interns, supports any file type (PDFs, images)
 - MongoDB stores only metadata: originalFilename, storageKey (Appwrite file ID), contentType, fileSizeBytes
 - storageKey has select:false on Mongoose schema AND is stripped in toJSON transform — NEVER exposed to clients
-- Actual Appwrite integration (presigned upload, download URLs) = Phase 12 hardening task
-- Current state: intern POSTs storageKey directly after uploading to Appwrite themselves (placeholder flow)
+- Upload flow: client calls GET /documents/:id/upload-info → gets {endpoint, projectId, bucketId, fileId} → uploads directly to Appwrite with client SDK → confirms via PATCH /documents/:id/upload
+- Download flow: client calls GET /documents/:id/download → server fetches from Appwrite via server SDK, streams buffer back
 
 ### Paper documents
 - PHYSICAL_RECEIVED status exists so HR can mark paper documents handed in at desk without requiring digital upload
 - System supports both digital and physical tracking simultaneously
+
+### Notifications
+- Simple in-app only — no push, no email
+- MongoDB records only — no Redis/BullMQ
+- createNotification() internal utility called by services after key events
+- 10 notification types — see API contract
+
+### Audit Log
+- AuditLog model records key HR actions (approve/reject, assignments, doc review, internship completion)
+- logAction() internal utility — fire-and-forget (wrapped in .catch())
+- Exposed via GET /api/v1/admin/history (HR only)
+
+### Internship Completion
+- HR explicitly closes internships via POST /interns/:id/complete
+- Checklist must pass: all tasks resolved, no PENDING documents, at least 1 evaluation submitted
+- Records completedAt + optional completionNote on Intern
+- History preserved — NO deletion of user or intern records
 
 ---
 
@@ -96,14 +116,14 @@ GOOGLE_CLIENT_ID=       # From Google Cloud Console — MUST FILL
 GOOGLE_CLIENT_SECRET=   # From Google Cloud Console — MUST FILL
 GOOGLE_CALLBACK_URL=http://localhost:5000/api/v1/auth/google/callback
 
-# Phase 12 — Appwrite Storage (fill when implementing Phase 12)
+# Appwrite Storage — required in production, optional in dev
 APPWRITE_ENDPOINT=      # e.g. https://cloud.appwrite.io/v1
 APPWRITE_PROJECT_ID=
 APPWRITE_BUCKET_ID=
 APPWRITE_API_KEY=
 ```
 
-Note: OBJECT_STORAGE_* vars in .env.example are outdated stubs. Replace with APPWRITE_* when implementing Phase 12. Update env.ts Zod schema accordingly.
+Note: OBJECT_STORAGE_* vars are gone — replaced by APPWRITE_* in Phase 12.
 
 ---
 
@@ -112,7 +132,7 @@ Note: OBJECT_STORAGE_* vars in .env.example are outdated stubs. Replace with APP
 ```
 src/
 ├── config/
-│   ├── env.ts              # Zod-validated env — add APPWRITE_* vars in Phase 12
+│   ├── env.ts              # Zod-validated env — APPWRITE_* required in production
 │   └── database.ts
 ├── middleware/
 │   ├── auth.ts             # authenticate() + getAuthUser() helper
@@ -123,11 +143,13 @@ src/
 │   ├── token.ts            # JWT helpers, cookie helpers, hashRefreshToken
 │   ├── passport.ts         # Google OAuth strategy (no sessions)
 │   ├── cleanup.ts          # 24h job: deletes expired PENDING accounts
-│   └── geofence.ts         # haversineDistance + checkGeofence
+│   ├── geofence.ts         # haversineDistance + checkGeofence
+│   └── appwrite.ts         # generateUploadInfo, downloadFile, deleteFile
 ├── modules/
 │   ├── auth/               # auth.types, schema, service, controller, routes, google.controller
 │   ├── users/              # user.model, user.types, users.schema, service, controller, routes
 │   ├── interns/            # intern.types, model, schema, service, controller, routes
+│   │                       # + exit.service, exit.controller, exit.routes (Phase 11)
 │   ├── departments/        # department.model, schema, service, controller, routes
 │   ├── supervisors/        # supervisor.model, schema, service, controller, routes
 │   ├── attendance/         # attendance.types, model, schema, service, controller, routes
@@ -136,8 +158,9 @@ src/
 │   ├── reports/            # report.model, schema, service, controller, routes
 │   ├── evaluations/        # evaluation.types, model, schema, service, controller, routes
 │   ├── documents/          # document.types, model, schema, service, controller, routes
-│   ├── notifications/      # STUB ONLY — routes file exists, empty
-│   ├── timeline/           # STUB ONLY
+│   ├── notifications/      # notification.types, model, schema, service, controller, routes
+│   ├── timeline/           # audit-log.types/model/service, timeline.service, summary.service,
+│   │                       # timeline.controller, timeline.routes
 │   ├── placements/         # STUB ONLY
 │   └── ai/                 # STUB ONLY
 ├── app.ts                  # All routers mounted here
@@ -149,22 +172,25 @@ src/
 ## ALL MOUNTED ROUTES (app.ts)
 
 ```
-/api/v1/auth         — signup, login, refresh, logout, me, google, google/callback
-/api/v1/users        — HR verification queue, approve, reject, list, get
-/api/v1/interns      — create, list, me, get, update, assign/remove department+supervisor
-/api/v1/departments  — create, list, get, update
-/api/v1/supervisors  — create, list, me, get, update, /:id/interns
-/api/v1/attendance   — check-in, list, get, correct
-/api/v1/tasks        — create, list, get, update
-/api/v1/submissions  — create, task/:taskId list, review
-/api/v1/reports      — create, list, get, update, submit, review
-/api/v1/evaluations  — create, list, get, update, submit
-/api/v1/documents    — requirements CRUD, document records, physical/upload/review, checklist
+/api/v1/auth              — signup, login, refresh, logout, me, google, google/callback
+/api/v1/users             — HR verification queue, approve, reject, list, get
+/api/v1/interns           — create, list, me, get, update, assign/remove dept+supervisor
+/api/v1/interns           — exit-checklist, complete (exit router, same prefix)
+/api/v1/departments       — create, list, get, update
+/api/v1/supervisors       — create, list, me, get, update, /:id/interns
+/api/v1/attendance        — check-in, list, get, correct
+/api/v1/tasks             — create, list, get, update
+/api/v1/submissions       — create, task/:taskId list, review
+/api/v1/reports           — create, list, get, update, submit, review
+/api/v1/evaluations       — create, list, get, update, submit
+/api/v1/documents         — requirements CRUD, document records, physical/upload/review/checklist, upload-info, download
+/api/v1/notifications     — list, read-all, /:id/read
+/api/v1                   — interns/:id/timeline, interns/:id/summary, admin/history
 ```
 
 ---
 
-## PHASES COMPLETE
+## ALL PHASES COMPLETE
 
 | Phase | Description | Commit |
 |---|---|---|
@@ -177,92 +203,80 @@ src/
 | 6 | Tasks, submissions, daily reports | 96d689c |
 | 7 | Performance & evaluations | dfa11b4 |
 | 8 | Documents & document tracking | 2af2aec |
+| 9 | Notifications | 8ca3655 |
+| 10 | Timeline, performance summary, admin history | 853d86a |
+| 11 | Internship completion & exit | 815c23e |
+| 12 | Hardening — Appwrite, rate limiting, indexes, tests | 6efbff7 |
+| 13 | API contract document | (this commit) |
 
 ---
 
-## NEXT: PHASE 9 — NOTIFICATIONS
+## API CONTRACT
 
-### What to build
-- Notification model: recipient (User ref), type (enum), title, body, read (bool), relatedEntity (optional ref), createdAt
-- Simple in-app notifications only — NO push, NO email yet (those are optional later)
-- NO Redis/BullMQ — simple MongoDB records
+See docs/API-CONTRACT.md — complete contract covering all 16 domains, every endpoint,
+request/response shapes, roles, errors, and all enum values.
 
-### Notification types to support
-```
-ACCOUNT_APPROVED
-ACCOUNT_REJECTED
-SUPERVISOR_ASSIGNED
-TASK_ASSIGNED
-TASK_FEEDBACK
-SUBMISSION_APPROVED
-SUBMISSION_CHANGES_REQUESTED
-EVALUATION_SUBMITTED
-DOCUMENT_STATUS_CHANGED
-REPORT_REVIEWED
-```
-
-### API
-```
-GET  /api/v1/notifications        — authenticated user's own notifications (paginated)
-PATCH /api/v1/notifications/:id/read   — mark one as read
-PATCH /api/v1/notifications/read-all  — mark all as read
-```
-
-### Key rules
-- Notifications are private — user sees only their own
-- Backend creates notifications internally (service calls from other services)
-- No client can create notifications directly
-- Export a createNotification(userId, type, title, body, relatedEntity?) utility function
-  that other services call — e.g. auth.service calls it after approveUser
+Frontend agents should read this document before building any UI.
 
 ---
 
-## PHASE 10 — TIMELINE, REPORTS & ADMIN HISTORY
+## UNIT TESTS
 
-- Intern timeline: aggregate events from existing records (attendance, tasks, reports, evaluations, document changes)
-- Performance summaries: aggregate attendance + task completion + evaluations per intern
-- Admin history: important HR actions (account approval/rejection, supervisor assignment, document status changes)
-- No new models needed — read from existing collections and assemble
+49 tests across 5 suites — run with `npm test`:
 
----
-
-## PHASE 11 — INTERNSHIP COMPLETION & EXIT
-
-- Exit checklist: outstanding tasks, pending documents, final evaluation
-- completedAt field on Intern model, status → COMPLETED
-- HR explicitly closes an internship
-- History preserved — do NOT delete user or intern record
+- tests/lib/geofence.test.ts — haversine distance, geofence check
+- tests/modules/auth.service.test.ts — signup, login, refresh, logout
+- tests/modules/users.service.test.ts — approveUser, rejectUser
+- tests/modules/exit.service.test.ts — getExitChecklist, completeInternship
+- tests/modules/notification.service.test.ts — createNotification, list, markOneRead, markAllRead
 
 ---
 
-## PHASE 12 — HARDENING & PRODUCTION READINESS
+## NEXT: FRONTEND — WHIPPE WEB (HR Dashboard)
 
-### Key items
-- Wire Appwrite Storage: implement presigned upload URLs, download URL generation
-  Add APPWRITE_* env vars to env.ts Zod schema (currently placeholders)
-- Rate limiting on auth routes (stricter than global 200/15min)
-- Audit logging for critical HR actions
-- Review all ownership checks
-- Add .gitattributes to fix CRLF warnings on Windows
+Build order:
+1. Whippe Web — HR dashboard first, then supervisor workspace
+2. Whippe Intern PWA — after HR can manage data end-to-end
 
----
+The HR dashboard must be built first because it is the control plane — intern accounts cannot
+be approved, departments cannot be created, and supervisors cannot be assigned until HR
+tooling exists.
 
-## PHASE 13 — API CONTRACT
+Frontend stack (from docs/01-WHIPPE-OVERVIEW.md):
+- Next.js + TypeScript
+- Tailwind CSS
+- shadcn/ui
+- TanStack Query (data fetching)
+- Recharts (only where useful)
 
-- Document all endpoints, request/response shapes, role requirements, error codes
-- Can be done as OpenAPI/Swagger or as a Markdown contract document
+Key HR workflows to implement first:
+1. Login / logout
+2. Verification queue — approve/reject accounts
+3. Create departments
+4. Create supervisor profiles
+5. Create intern records
+6. Assign supervisors and departments to interns
+7. Attendance monitoring
+8. Document tracking
+9. Admin history
 
 ---
 
 ## IMPORTANT NOTES FOR NEW INSTANCE
 
 1. Always run `npx tsc --noEmit` before committing — keep it at exit 0
-2. CRLF warnings on git commit are harmless (Windows line endings) — ignore them
-3. The PowerShell git push output shows exit code 1 but the push succeeds — the "error" is just PowerShell formatting the remote URL message. Confirm by checking `git log --oneline -1`
-4. Do NOT use `insert` on tool writes — it caused file concatenation bugs in this session. Always use `create` for new files or `strReplace` for targeted edits
+2. CRLF warnings on git commit are now silenced by .gitattributes
+3. The PowerShell git push output shows exit code 1 but the push succeeds — the "error" is just
+   PowerShell formatting the remote URL message. Confirm by checking `git log --oneline -1`
+4. Do NOT use `insert` on tool writes for large files — use `create` for new files or `strReplace`
+   for targeted edits
 5. When app.ts import strReplace fails, read the exact current lines first before retrying
 6. Supervisor deactivation auto-clears interns — this is intentional and documented
-7. storageKey is NEVER sent to clients (select:false + toJSON strip) — maintain this in Phase 12
-8. `getAuthUser(req)` helper in middleware/auth.ts extracts typed AuthenticatedUser from req.user — use this in all controllers instead of req.user directly
+7. storageKey is NEVER sent to clients (select:false + toJSON strip) — maintain this
+8. `getAuthUser(req)` helper in middleware/auth.ts extracts typed AuthenticatedUser from req.user
+   — use this in all controllers instead of req.user directly
 9. Role enum values: Role.HR, Role.SUPERVISOR, Role.INTERN (uppercase)
 10. All business logic in services — controllers only parse input and call services
+11. logAction() and createNotification() are always fire-and-forget — wrap in .catch(() => {})
+12. tsconfig.json has no rootDir — tests/ and src/ are both included. Do not add rootDir back.
+13. Appwrite vars are optional in dev — code handles missing vars gracefully with descriptive errors
