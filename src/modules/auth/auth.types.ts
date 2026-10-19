@@ -8,8 +8,15 @@ export enum Role {
 
 // ─── Account status ───────────────────────────────────────────────────────────
 // Separate from internship status — see 05-WHIPPE-SHARED-BACKEND-DATA.md
+//
+// Lifecycle:
+//   UNVERIFIED_EMAIL          → user signed up, hasn't clicked email link yet
+//   PENDING_HR_VERIFICATION   → email verified, waiting for HR to approve
+//   ACTIVE                    → HR approved, full access
+//   REJECTED                  → HR rejected the account
 
 export enum AccountStatus {
+  UNVERIFIED_EMAIL = 'UNVERIFIED_EMAIL',
   PENDING_HR_VERIFICATION = 'PENDING_HR_VERIFICATION',
   ACTIVE = 'ACTIVE',
   REJECTED = 'REJECTED',
@@ -20,6 +27,7 @@ export enum AccountStatus {
 export enum AuthMethod {
   PASSWORD = 'PASSWORD',
   GOOGLE = 'GOOGLE',
+  BOTH = 'BOTH',   // account has both password and Google linked
 }
 
 // ─── JWT payload shapes ──────────────────────────────────────────────────────

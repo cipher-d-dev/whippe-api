@@ -47,3 +47,63 @@ export const loginSchema = z.object({
 });
 
 export type LoginInput = z.infer<typeof loginSchema>['body'];
+
+// ─── Resend verification email ───────────────────────────────────────────────
+
+export const resendVerificationSchema = z.object({
+  body: z.object({
+    email: z
+      .string({ required_error: 'Email is required' })
+      .email('Invalid email address')
+      .toLowerCase(),
+  }),
+});
+
+export type ResendVerificationInput = z.infer<typeof resendVerificationSchema>['body'];
+
+// ─── Forgot password ─────────────────────────────────────────────────────────
+
+export const forgotPasswordSchema = z.object({
+  body: z.object({
+    email: z
+      .string({ required_error: 'Email is required' })
+      .email('Invalid email address')
+      .toLowerCase(),
+  }),
+});
+
+export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>['body'];
+
+// ─── Reset password ──────────────────────────────────────────────────────────
+// Stronger validation than signup — password reset should force a decent
+// password. We require length AND at least one letter and one number.
+
+export const resetPasswordSchema = z.object({
+  body: z.object({
+    token: z
+      .string({ required_error: 'Token is required' })
+      .min(1, 'Token is required'),
+    password: z
+      .string({ required_error: 'New password is required' })
+      .min(8, 'Password must be at least 8 characters')
+      .max(72, 'Password must not exceed 72 characters')
+      .refine(
+        (pw) => /[a-zA-Z]/.test(pw) && /\d/.test(pw),
+        'Password must contain at least one letter and one number',
+      ),
+  }),
+});
+
+export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>['body'];
+
+// ─── Verify email (POST — frontend calls this with the token from the URL) ────
+
+export const verifyEmailSchema = z.object({
+  body: z.object({
+    token: z
+      .string({ required_error: 'Token is required' })
+      .min(1, 'Token is required'),
+  }),
+});
+
+export type VerifyEmailInput = z.infer<typeof verifyEmailSchema>['body'];

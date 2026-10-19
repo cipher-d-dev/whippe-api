@@ -34,6 +34,16 @@ const envSchema = z.object({
   APPWRITE_PROJECT_ID: z.string().optional(),
   APPWRITE_BUCKET_ID: z.string().optional(),
   APPWRITE_API_KEY: z.string().optional(),
+
+  // ── Email (Resend) ─────────────────────────────────────────────────────────
+  // Optional in dev — when absent, emails are logged to the console (stub mode).
+  // Required in production (enforced below).
+  RESEND_API_KEY: z.string().optional(),
+  // From-address. Default works in dev stub mode; in production set this to a
+  // verified domain address e.g. "Whippie <no-reply@whippie.app>".
+  EMAIL_FROM: z
+    .string()
+    .default('Whippie <no-reply@whippie.app>'),
 });
 
 function validateEnv() {
@@ -56,6 +66,7 @@ function validateEnv() {
     if (!data.APPWRITE_PROJECT_ID) missing.push('APPWRITE_PROJECT_ID');
     if (!data.APPWRITE_BUCKET_ID) missing.push('APPWRITE_BUCKET_ID');
     if (!data.APPWRITE_API_KEY) missing.push('APPWRITE_API_KEY');
+    if (!data.RESEND_API_KEY) missing.push('RESEND_API_KEY');
 
     if (missing.length > 0) {
       console.error('❌  Missing required production environment variables:');

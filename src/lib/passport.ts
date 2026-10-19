@@ -7,11 +7,14 @@ import { AccountStatus, AuthMethod, Role } from '../modules/auth/auth.types';
 /**
  * Google OAuth strategy.
  *
- * Two cases:
+ * Three cases:
  *  1. Existing Google account   → return the user as-is.
- *  2. New Google account        → create a PENDING_HR_VERIFICATION account.
- *     Google authentication proves email ownership only.
- *     HR verification is still required before full access.
+ *  2. Password account with the same email → silently link googleId, return user.
+ *  3. Brand new user            → create a PENDING_HR_VERIFICATION account.
+ *
+ * Google signups go straight to PENDING_HR_VERIFICATION (skipping
+ * UNVERIFIED_EMAIL) because Google has already proven email ownership.
+ * HR verification is still required before full access.
  *
  * We do not use passport sessions — the callback controller issues JWTs.
  * passport.serializeUser / deserializeUser are therefore noops.

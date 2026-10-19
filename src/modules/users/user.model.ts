@@ -17,6 +17,15 @@ export interface IUser {
   // Refresh token — only the SHA-256 hash is stored, never the raw token
   refreshTokenHash?: string;
 
+  // Email verification — token hash + expiry; set when user signs up
+  emailVerificationTokenHash?: string;
+  emailVerificationExpiresAt?: Date;
+  emailVerifiedAt?: Date;
+
+  // Password reset — token hash + expiry; set when user requests reset
+  passwordResetTokenHash?: string;
+  passwordResetExpiresAt?: Date;
+
   // HR verification audit trail
   verificationExpiresAt: Date;     // 30 days after account creation
   verifiedAt?: Date;
@@ -100,6 +109,26 @@ const userSchema = new Schema<IUserDocument, IUserModel>(
       select: false,
     },
 
+    // ─── Email verification ───────────────────────────────────────────────────
+    emailVerificationTokenHash: {
+      type: String,
+      select: false,
+    },
+    emailVerificationExpiresAt: {
+      type: Date,
+      select: false,
+    },
+
+    // ─── Password reset ───────────────────────────────────────────────────────
+    passwordResetTokenHash: {
+      type: String,
+      select: false,
+    },
+    passwordResetExpiresAt: {
+      type: Date,
+      select: false,
+    },
+
     // ─── HR verification ─────────────────────────────────────────────────────
     verificationExpiresAt: {
       type: Date,
@@ -130,6 +159,10 @@ const userSchema = new Schema<IUserDocument, IUserModel>(
       transform(_doc, ret: Record<string, unknown>) {
         ret['passwordHash'] = undefined;
         ret['refreshTokenHash'] = undefined;
+        ret['emailVerificationTokenHash'] = undefined;
+        ret['emailVerificationExpiresAt'] = undefined;
+        ret['passwordResetTokenHash'] = undefined;
+        ret['passwordResetExpiresAt'] = undefined;
         ret['__v'] = undefined;
         return ret;
       },
@@ -142,6 +175,8 @@ const userSchema = new Schema<IUserDocument, IUserModel>(
 userSchema.index({ status: 1 });
 userSchema.index({ role: 1 });
 userSchema.index({ verificationExpiresAt: 1 });  // for 30-day cleanup job (Phase 2)
+userSchema.index({ emailVerificationTokenHash: 1 }, { sparse: true });
+userSchema.index({ passwordResetTokenHash: 1 }, { sparse: true });
 
 // ─── Instance methods ────────────────────────────────────────────────────────
 

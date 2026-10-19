@@ -7,6 +7,10 @@ import {
   refreshHandler,
   logoutHandler,
   getMeHandler,
+  resendVerificationHandler,
+  verifyEmailHandler,
+  forgotPasswordHandler,
+  resetPasswordHandler,
 } from './auth.controller';
 import {
   googleAuthHandler,
@@ -15,14 +19,27 @@ import {
 
 const router = Router();
 
-// Auth-specific rate limit: 15 attempts per 15 minutes per IP.
-// Much stricter than the global 200/15min to slow down brute-force attacks.
+// ─── Rate limiters ────────────────────────────────────────────────────────────
+
+// Auth (login, signup, refresh) — 15 attempts per 15 minutes per IP
 const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
+  windowMs: 15 * 60 * 1000,
   max: 15,
   standardHeaders: true,
   legacyHeaders: false,
   message: { success: false, message: 'Too many attempts. Please try again in 15 minutes.' },
+});
+
+// Email endpoints — stricter: 5 per 15 minutes (prevents email spam)
+const emailLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: 'Too many requests. Please wait 15 minutes before trying again.',
+  },
 });
 
 // ─── Password auth (public) ───────────────────────────────────────────────────
@@ -35,6 +52,23 @@ router.post('/login', authLimiter, loginHandler);
 
 // POST /api/v1/auth/refresh  — reads refresh token from HTTP-only cookie
 router.post('/refresh', authLimiter, refreshHandler);
+
+// ─── Email verification ───────────────────────────────────────────────────────
+
+// GET /api/v1/auth/verify-email?token=...  (clicked from email — frontend page reads the query param and POSTs it)
+// POST /api/v1/auth/verify-email  (frontend submits the token here)
+router.post('/verify-email', verifyEmailHandler);
+
+// POST /api/v1/auth/resend-verification  (user requests a new link)
+router.post('/resend-verification', emailLimiter, resendVerificationHandler);
+
+// ─── Password reset ───────────────────────────────────────────────────────────
+
+// POST /api/v1/auth/forgot-password
+router.post('/forgot-password', emailLimiter, forgotPasswordHandler);
+
+// POST /api/v1/auth/reset-password
+router.post('/reset-password', authLimiter, resetPasswordHandler);
 
 // ─── Google OAuth ─────────────────────────────────────────────────────────────
 

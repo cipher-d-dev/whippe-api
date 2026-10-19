@@ -1,6 +1,13 @@
 import { Request, Response, NextFunction } from 'express';
 import * as authService from './auth.service';
-import { signupSchema, loginSchema } from './auth.schema';
+import {
+  signupSchema,
+  loginSchema,
+  resendVerificationSchema,
+  forgotPasswordSchema,
+  resetPasswordSchema,
+  verifyEmailSchema,
+} from './auth.schema';
 import {
   REFRESH_TOKEN_COOKIE,
   refreshTokenCookieOptions,
@@ -27,7 +34,7 @@ export async function signupHandler(
 
     res.status(201).json({
       success: true,
-      message: 'Account created. Pending HR verification.',
+      message: 'Account created. Check your email to verify your address.',
       data: {
         accessToken,
         user,
@@ -134,6 +141,103 @@ export async function getMeHandler(
     res.status(200).json({
       success: true,
       data: { user: me },
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// ─── POST /auth/resend-verification ────────────────────────────────────────────
+
+export async function resendVerificationHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const { body } = resendVerificationSchema.parse({ body: req.body });
+    await authService.resendVerificationEmail(body.email);
+
+    // Always 200 — anti-enumeration. We never reveal whether the email exists.
+    res.status(200).json({
+      success: true,
+      message:
+        'If an account with that email is unverified, a new verification link has been sent.',
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// ─── POST /auth/verify-email ──────────────────────────────────────────────────
+// Frontend reads the token from the email-link URL and POSTs it here.
+
+export async function verifyEmailHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const { body } = verifyEmailSchema.parse({ body: req.body });
+    const result = await authService.verifyEmail(body.token);
+
+    if (!result.ok) {
+      res.status(400).json({
+        success: false,
+        message:
+          result.reason === 'expired'
+            ? 'This verification link has expired. Please request a new one.'
+            : 'Invalid verification link.',
+      });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Email verified successfully. Your account is now awaiting HR review.',
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// ─── POST /auth/forgot-password ───────────────────────────────────────────────
+
+export async function forgotPasswordHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const { body } = forgotPasswordSchema.parse({ body: req.body });
+    await authService.requestPasswordReset(body.email);
+
+    // Always 200 — anti-enumeration. We never reveal whether the email exists.
+    res.status(200).json({
+      success: true,
+      message:
+        'If an account with that email exists, a password reset link has been sent.',
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// ─── POST /auth/reset-password ────────────────────────────────────────────────
+
+export async function resetPasswordHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const { body } = resetPasswordSchema.parse({ body: req.body });
+    await authService.resetPassword(body.token, body.password);
+
+    res.status(200).json({
+      success: true,
+      message:
+        'Password reset successfully. You can now log in with your new password.',
     });
   } catch (err) {
     next(err);
