@@ -1,27 +1,19 @@
 /**
- * email.ts — Resend-backed email sender.
+ * email.ts — Mailtrap-backed email sender.
  *
- * When RESEND_API_KEY is set, emails are dispatched via Resend.
- * When it is absent (local dev without a key), the email payload is logged
- * to the console instead — no mail is sent, but the flow is fully exercised.
+ * When MAILTRAP_TOKEN is set, emails are dispatched via the Mailtrap
+ * Email Sending API (nodemailer + MailtrapTransport).
+ * When it is absent (local dev without a token), the email payload is logged
+ * to the console instead — no mail is sent but the flow is fully exercised.
+ *
+ * Check sent logs at: https://mailtrap.io/sending/email_logs
  *
  * Import sendEmail() wherever you need to send transactional mail.
  */
 
-import { Resend } from 'resend';
+import nodemailer, { Transporter } from 'nodemailer';
+import { MailtrapTransport } from 'mailtrap';
 import { env } from '../config/env';
-
-// ─── Client (lazy — only initialised when key is present) ────────────────────
-
-let _resend: Resend | null = null;
-
-function getResend(): Resend | null {
-  if (_resend) return _resend;
-  if (env.RESEND_API_KEY) {
-    _resend = new Resend(env.RESEND_API_KEY);
-  }
-  return _resend;
-}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -32,22 +24,50 @@ export interface SendEmailInput {
   text: string;
 }
 
+// ─── Transport (lazy — only created when token is present) ───────────────────
+
+let _transport: Transporter | null = null;
+
+function getTransport(): Transporter | null {
+  if (_transport) return _transport;
+  if (env.MAILTRAP_TOKEN) {
+    _transport = nodemailer.createTransport(
+      MailtrapTransport({ token: env.MAILTRAP_TOKEN }),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ) as any as Transporter;
+  }
+  return _transport;
+}
+
+// ─── Sender identity ──────────────────────────────────────────────────────────
+// Parsed from EMAIL_FROM: "Whippie <no-reply@whippie.app>"
+// Falls back to a safe default if the env var is missing.
+
+function parseSender(from: string): { name: string; address: string } {
+  const match = from.match(/^(.+?)\s*<(.+)>$/);
+  if (match) {
+    return { name: match[1].trim(), address: match[2].trim() };
+  }
+  // Plain address with no display name
+  return { name: 'Whippie', address: from.trim() };
+}
+
 // ─── sendEmail ────────────────────────────────────────────────────────────────
 
 /**
  * Send a transactional email.
  *
- * The function never throws on email failure — a delivery error must never
- * crash a signup or password-reset request. Errors are logged and swallowed.
+ * Never throws on delivery failure — errors are logged and swallowed so a
+ * broken email send never crashes a signup or password-reset flow.
  *
  * Returns true if sent (or stubbed), false if an error occurred.
  */
 export async function sendEmail(input: SendEmailInput): Promise<boolean> {
-  const resend = getResend();
+  const transport = getTransport();
 
-  // ── Stub mode (no API key) ────────────────────────────────────────────────
-  if (!resend) {
-    console.log('\n📧 [EMAIL STUB — no RESEND_API_KEY set]');
+  // ── Stub mode (no token) ──────────────────────────────────────────────────
+  if (!transport) {
+    console.log('\n📧 [EMAIL STUB — no MAILTRAP_TOKEN set]');
     console.log('  To:      ', input.to);
     console.log('  Subject: ', input.subject);
     console.log('  Body:\n');
@@ -56,24 +76,21 @@ export async function sendEmail(input: SendEmailInput): Promise<boolean> {
     return true;
   }
 
-  // ── Real send via Resend ──────────────────────────────────────────────────
+  // ── Real send via Mailtrap ────────────────────────────────────────────────
   try {
-    const { error } = await resend.emails.send({
-      from: env.EMAIL_FROM ?? 'Whippie <no-reply@whippie.app>',
+    const sender = parseSender(env.EMAIL_FROM ?? 'Whippie <no-reply@whippie.app>');
+
+    await transport.sendMail({
+      from: sender,
       to: input.to,
       subject: input.subject,
       html: input.html,
       text: input.text,
     });
 
-    if (error) {
-      console.error('[email] Resend delivery error:', error);
-      return false;
-    }
-
     return true;
   } catch (err) {
-    console.error('[email] Unexpected error sending email:', err);
+    console.error('[email] Mailtrap delivery error:', err);
     return false;
   }
 }
