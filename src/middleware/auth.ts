@@ -32,6 +32,7 @@ export function authenticate(
       id: payload.sub,
       role: payload.role,
       status: payload.status,
+      authMethod: payload.authMethod,
     } as unknown as Express.User;
 
     next();

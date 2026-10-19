@@ -66,17 +66,18 @@
 
 ## F. Security Hardening
 
-- [ ] Independent rate limits on `forgot-password`, `resend-verification`, `auth/method`
-- [ ] Invalidate all refresh tokens on password reset
-- [ ] Password strength validation on reset (not just length)
-- [ ] Add `authMethod` to access token payload so backend can reject mismatched flows early
-- [ ] Audit log for account-linking changes (optional, nice-to-have)
+- [x] Independent rate limits on `forgot-password`, `resend-verification`, `auth/method` (5/15min vs 15/15min for auth)
+- [x] Invalidate all refresh tokens on password reset
+- [x] Password strength validation on reset (min 8 chars + letter + number)
+- [x] Add `authMethod` to access token payload — now in `AccessTokenPayload`, `signAccessToken`, `req.user`
+- [ ] Audit log for account-linking changes (optional, nice-to-have — skipped for now)
 
 ## G. Phase 10 PWA + README (carried over)
 
-- [ ] Commit already-updated `manifest.json`
-- [ ] Add install-prompt component (`beforeinstallprompt` handler)
-- [ ] Update README with current project state and auth docs
+- [x] Commit already-updated `manifest.json`
+- [x] Add `InstallPrompt` component (`beforeinstallprompt` handler, dismisses to sessionStorage)
+- [x] `InstallPrompt` added to `Providers.tsx` — renders on all app pages
+- [x] `README.md` written — phases, auth flow, routes, env vars, PWA instructions
 
 ---
 
@@ -107,7 +108,8 @@ E (smart detection) — needs D done first (so authMethod field is meaningful)
 | Session | Date | Work completed | Commit(s) | Notes |
 |---------|------|----------------|-----------|-------|
 | 1 | 2026-10-19 | Roadmap created, A complete | (pending) | Resend wired but key blank in .env — user will fill in |
-| 1 | 2026-10-19 | B + C complete (email verification + forgot/reset password) | (pending) | Backend + frontend both typecheck clean |
+| 1 | 2026-10-19 | B + C complete (email verification + forgot/reset password) | 34ae52e (api), ae2347b (intern) | Backend + frontend both typecheck clean |
+| 1 | 2026-10-19 | D + E + F + G complete — full auth roadmap done | (pending) | All sections implemented and typechecked |
 
 ---
 

@@ -6,6 +6,7 @@ import {
   RefreshTokenPayload,
   Role,
   AccountStatus,
+  AuthMethod,
 } from '../modules/auth/auth.types';
 
 // ─── Lifetimes ────────────────────────────────────────────────────────────────
@@ -20,11 +21,13 @@ export function signAccessToken(payload: {
   userId: string;
   role: Role;
   status: AccountStatus;
+  authMethod: AuthMethod;
 }): string {
   const data: AccessTokenPayload = {
     sub: payload.userId,
     role: payload.role,
     status: payload.status,
+    authMethod: payload.authMethod,
   };
   return jwt.sign(data, env.JWT_SECRET, { expiresIn: ACCESS_TOKEN_TTL });
 }

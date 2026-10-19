@@ -33,9 +33,10 @@ export enum AuthMethod {
 // ─── JWT payload shapes ──────────────────────────────────────────────────────
 
 export interface AccessTokenPayload {
-  sub: string;   // User._id as string
+  sub: string;        // User._id as string
   role: Role;
   status: AccountStatus;
+  authMethod: AuthMethod;
   iat?: number;
   exp?: number;
 }
@@ -53,6 +54,7 @@ export interface AuthenticatedUser {
   id: string;
   role: Role;
   status: AccountStatus;
+  authMethod: AuthMethod;
 }
 
 // Merge into passport's Express.User.
@@ -64,6 +66,7 @@ declare global {
       id?: string;
       role?: Role;
       status?: AccountStatus;
+      authMethod?: AuthMethod;
     }
   }
 }

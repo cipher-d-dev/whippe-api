@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import passport from '../../lib/passport';
 import { IUserDocument } from '../users/user.model';
-import { AccountStatus, Role } from './auth.types';
+import { AccountStatus, Role, AuthMethod } from './auth.types';
 import {
   signAccessToken,
   signRefreshToken,
@@ -41,7 +41,13 @@ export function googleCallbackHandler(
     { session: false },
     async (err: Error | null, user: IUserDocument | false) => {
       if (err || !user) {
-        res.redirect(`${env.FRONTEND_URL}/auth/login?error=google_failed`);
+        // `user === false` from the strategy means "don't link — existing unverified account"
+        // In that case we redirect to login with a specific, actionable error.
+        const reason =
+          !err && !user
+            ? 'email_unverified_link_first'
+            : 'google_failed';
+        res.redirect(`${env.FRONTEND_URL}/auth/login?error=${reason}`);
         return;
       }
 
@@ -56,6 +62,7 @@ export function googleCallbackHandler(
           userId: user.id as string,
           role: user.role as Role,
           status: user.status as AccountStatus,
+          authMethod: user.authMethod as AuthMethod,
         });
         const refreshToken = signRefreshToken(user.id as string);
         const refreshTokenHash = hashRefreshToken(refreshToken);

@@ -38,8 +38,8 @@ function verificationExpiresAt(): Date {
   return d;
 }
 
-function issueTokens(userId: string, role: Role, status: AccountStatus) {
-  const accessToken = signAccessToken({ userId, role, status });
+function issueTokens(userId: string, role: Role, status: AccountStatus, authMethod: AuthMethod) {
+  const accessToken = signAccessToken({ userId, role, status, authMethod });
   const refreshToken = signRefreshToken(userId);
   const refreshTokenHash = hashRefreshToken(refreshToken);
   return { accessToken, refreshToken, refreshTokenHash };
@@ -77,6 +77,7 @@ export async function signup(input: SignupInput) {
     user.id,
     user.role,
     user.status,
+    user.authMethod,
   );
 
   // Persist refresh token hash
@@ -293,6 +294,7 @@ export async function login(input: LoginInput) {
     user.id,
     user.role,
     user.status,
+    user.authMethod,
   );
 
   await User.findByIdAndUpdate(user.id, { refreshTokenHash });
@@ -334,7 +336,7 @@ export async function refresh(rawRefreshToken: string) {
     accessToken,
     refreshToken: newRefreshToken,
     refreshTokenHash: newHash,
-  } = issueTokens(user.id, user.role, user.status);
+  } = issueTokens(user.id, user.role, user.status, user.authMethod);
 
   await User.findByIdAndUpdate(user.id, { refreshTokenHash: newHash });
 
