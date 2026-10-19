@@ -36,6 +36,7 @@ const envSchema = z.object({
   APPWRITE_API_KEY: z.string().optional(),
 
   // ── Email (Mailtrap) ──────────────────────────────────────────────────────
+  // Credentials from https://mailtrap.io → Sending → API Tokens
   // Optional in dev — when absent, emails are logged to the console (stub mode).
   // Required in production (enforced below).
   MAILTRAP_TOKEN: z.string().optional(),

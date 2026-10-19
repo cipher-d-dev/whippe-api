@@ -1,10 +1,9 @@
 /**
  * email.ts — Mailtrap-backed email sender.
  *
- * When MAILTRAP_TOKEN is set, emails are dispatched via the Mailtrap
- * Email Sending API (nodemailer + MailtrapTransport).
- * When it is absent (local dev without a token), the email payload is logged
- * to the console instead — no mail is sent but the flow is fully exercised.
+ * Uses the Mailtrap Email Sending API via nodemailer + MailtrapTransport.
+ * When MAILTRAP_TOKEN is absent (local dev), emails are logged to the console
+ * instead of being sent — the full flow is still exercised.
  *
  * Check sent logs at: https://mailtrap.io/sending/email_logs
  *
@@ -24,13 +23,15 @@ export interface SendEmailInput {
   text: string;
 }
 
-// ─── Transport (lazy — only created when token is present) ───────────────────
+// ─── Transport (lazy — only initialised when token is present) ───────────────
 
 let _transport: Transporter | null = null;
 
 function getTransport(): Transporter | null {
   if (_transport) return _transport;
   if (env.MAILTRAP_TOKEN) {
+    // MailtrapTransport returns a MailtrapTransporter; cast to the base
+    // Transporter type so the rest of the file stays provider-agnostic.
     _transport = nodemailer.createTransport(
       MailtrapTransport({ token: env.MAILTRAP_TOKEN }),
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -40,15 +41,12 @@ function getTransport(): Transporter | null {
 }
 
 // ─── Sender identity ──────────────────────────────────────────────────────────
-// Parsed from EMAIL_FROM: "Whippie <no-reply@whippie.app>"
-// Falls back to a safe default if the env var is missing.
+// Parses EMAIL_FROM: "Whippie <no-reply@whippie.app>" into the object shape
+// Mailtrap / nodemailer expects for the `from` field.
 
 function parseSender(from: string): { name: string; address: string } {
   const match = from.match(/^(.+?)\s*<(.+)>$/);
-  if (match) {
-    return { name: match[1].trim(), address: match[2].trim() };
-  }
-  // Plain address with no display name
+  if (match) return { name: match[1].trim(), address: match[2].trim() };
   return { name: 'Whippie', address: from.trim() };
 }
 
@@ -58,14 +56,14 @@ function parseSender(from: string): { name: string; address: string } {
  * Send a transactional email.
  *
  * Never throws on delivery failure — errors are logged and swallowed so a
- * broken email send never crashes a signup or password-reset flow.
+ * broken email send never crashes a signup or password-reset request.
  *
  * Returns true if sent (or stubbed), false if an error occurred.
  */
 export async function sendEmail(input: SendEmailInput): Promise<boolean> {
   const transport = getTransport();
 
-  // ── Stub mode (no token) ──────────────────────────────────────────────────
+  // ── Stub mode (no token in env) ───────────────────────────────────────────
   if (!transport) {
     console.log('\n📧 [EMAIL STUB — no MAILTRAP_TOKEN set]');
     console.log('  To:      ', input.to);
