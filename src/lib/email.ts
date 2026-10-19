@@ -1,16 +1,13 @@
 /**
- * email.ts — Mailtrap-backed email sender.
+ * email.ts — Mailtrap Email Sending API via nodemailer + MailtrapTransport.
  *
- * Uses the Mailtrap Email Sending API via nodemailer + MailtrapTransport.
- * When MAILTRAP_TOKEN is absent (local dev), emails are logged to the console
- * instead of being sent — the full flow is still exercised.
+ * Mirrors the verified working pattern from scripts/test-email.ts exactly.
+ * When MAILTRAP_TOKEN is absent (local dev), emails are logged to console.
  *
  * Check sent logs at: https://mailtrap.io/sending/email_logs
- *
- * Import sendEmail() wherever you need to send transactional mail.
  */
 
-import nodemailer, { Transporter } from 'nodemailer';
+import Nodemailer from 'nodemailer';
 import { MailtrapTransport } from 'mailtrap';
 import { env } from '../config/env';
 
@@ -21,30 +18,28 @@ export interface SendEmailInput {
   subject: string;
   html: string;
   text: string;
+  category?: string;
 }
 
-// ─── Transport (lazy — only initialised when token is present) ───────────────
+// ─── Transport (lazy singleton) ───────────────────────────────────────────────
 
-let _transport: Transporter | null = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let _transport: any = null;
 
-function getTransport(): Transporter | null {
+function getTransport() {
   if (_transport) return _transport;
   if (env.MAILTRAP_TOKEN) {
-    // MailtrapTransport returns a MailtrapTransporter; cast to the base
-    // Transporter type so the rest of the file stays provider-agnostic.
-    _transport = nodemailer.createTransport(
+    _transport = Nodemailer.createTransport(
       MailtrapTransport({ token: env.MAILTRAP_TOKEN }),
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ) as any as Transporter;
+    );
   }
   return _transport;
 }
 
-// ─── Sender identity ──────────────────────────────────────────────────────────
-// Parses EMAIL_FROM: "Whippie <no-reply@whippie.app>" into the object shape
-// Mailtrap / nodemailer expects for the `from` field.
+// ─── Sender ───────────────────────────────────────────────────────────────────
 
-function parseSender(from: string): { name: string; address: string } {
+function getSender(): { address: string; name: string } {
+  const from = env.EMAIL_FROM ?? 'Whippie <hello@isbmpa.com>';
   const match = from.match(/^(.+?)\s*<(.+)>$/);
   if (match) return { name: match[1].trim(), address: match[2].trim() };
   return { name: 'Whippie', address: from.trim() };
@@ -54,16 +49,14 @@ function parseSender(from: string): { name: string; address: string } {
 
 /**
  * Send a transactional email.
- *
- * Never throws on delivery failure — errors are logged and swallowed so a
- * broken email send never crashes a signup or password-reset request.
- *
- * Returns true if sent (or stubbed), false if an error occurred.
+ * Never throws — errors are logged and swallowed so delivery failure
+ * never crashes a signup or password-reset request.
+ * Returns true if sent (or stubbed), false on error.
  */
 export async function sendEmail(input: SendEmailInput): Promise<boolean> {
   const transport = getTransport();
 
-  // ── Stub mode (no token in env) ───────────────────────────────────────────
+  // ── Stub mode ─────────────────────────────────────────────────────────────
   if (!transport) {
     console.log('\n📧 [EMAIL STUB — no MAILTRAP_TOKEN set]');
     console.log('  To:      ', input.to);
@@ -74,18 +67,16 @@ export async function sendEmail(input: SendEmailInput): Promise<boolean> {
     return true;
   }
 
-  // ── Real send via Mailtrap ────────────────────────────────────────────────
+  // ── Real send ─────────────────────────────────────────────────────────────
   try {
-    const sender = parseSender(env.EMAIL_FROM ?? 'Whippie <no-reply@whippie.app>');
-
     await transport.sendMail({
-      from: sender,
-      to: input.to,
+      from: getSender(),
+      to: [input.to],
       subject: input.subject,
       html: input.html,
       text: input.text,
+      ...(input.category ? { category: input.category } : {}),
     });
-
     return true;
   } catch (err) {
     console.error('[email] Mailtrap delivery error:', err);

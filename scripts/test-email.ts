@@ -1,18 +1,21 @@
 /**
- * test-email.ts — quick sanity check for the Mailtrap email setup.
+ * test-email.ts — sanity check for the Mailtrap Email Sending API.
  *
- * Sends one of each template type so you can verify they all render and
- * deliver correctly before going live.
+ * Sends a simple test email first to confirm the token + domain work,
+ * then sends all 4 Whippie templates.
  *
  * Usage:
  *   npx tsx scripts/test-email.ts
  *
- * Make sure MAILTRAP_TOKEN is set in .env before running.
+ * Required in .env:
+ *   MAILTRAP_TOKEN=your_api_token_here
+ *
  * Check results at: https://mailtrap.io/sending/email_logs
  */
 
 import 'dotenv/config';
-import { sendEmail } from '../src/lib/email';
+import Nodemailer from 'nodemailer';
+import { MailtrapTransport } from 'mailtrap';
 import {
   renderVerificationEmail,
   renderPasswordResetEmail,
@@ -20,85 +23,101 @@ import {
   renderRejectionEmail,
 } from '../src/lib/email-templates';
 
-// ── Change this to your own email to receive the test messages ───────────────
-const TEST_RECIPIENT = 'faveejiofor2009@gmail.com';
+const TOKEN = process.env['MAILTRAP_TOKEN'];
 
-// ── Fake data used to populate the templates ─────────────────────────────────
-const FAKE_FIRST_NAME = 'Favour';
-const FAKE_VERIFY_URL = 'http://localhost:3000/auth/verify-email?token=test-token-abc123';
-const FAKE_RESET_URL  = 'http://localhost:3000/auth/reset-password?token=test-token-xyz789';
-const FAKE_LOGIN_URL  = 'http://localhost:3000/login';
-const FAKE_SUPPORT_URL = 'http://localhost:3000/login';
+if (!TOKEN) {
+  console.error('❌  MAILTRAP_TOKEN is not set in .env');
+  process.exit(1);
+}
+
+const transport = Nodemailer.createTransport(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  MailtrapTransport({ token: TOKEN }) as any,
+);
+
+const sender = {
+  address: 'hello@isbmpa.com',
+  name: 'Whippie',
+};
+
+const recipients = ['faveejiofor2009@gmail.com'];
+
+const FAKE = {
+  firstName:  'Favour',
+  verifyUrl:  'http://localhost:3000/auth/verify-email?token=test-abc123',
+  resetUrl:   'http://localhost:3000/auth/reset-password?token=test-xyz789',
+  loginUrl:   'http://localhost:3000/login',
+  supportUrl: 'http://localhost:3000/login',
+};
 
 async function run() {
-  console.log(`\n📬 Sending test emails to: ${TEST_RECIPIENT}\n`);
+  console.log('\n📬 Sending test emails via Mailtrap...\n');
 
-  const tests: Array<{ name: string; email: ReturnType<typeof renderVerificationEmail> }> = [
+  // ── 1. Simple smoke test (mirrors the sample exactly) ────────────────────
+  console.log('  [1/5] Simple smoke test...');
+  try {
+    const info = await transport.sendMail({
+      from: sender,
+      to: recipients,
+      subject: 'You are awesome!',
+      text: 'Congrats for sending test email with Mailtrap!',
+      category: 'Integration Test',
+    });
+    console.log('  ✅  messageId:', (info as any).messageId ?? JSON.stringify(info));
+  } catch (err) {
+    console.error('  ❌  smoke test failed:', err);
+    process.exit(1);
+  }
+
+  // ── 2. All 4 Whippie templates ────────────────────────────────────────────
+  const templates = [
     {
-      name: 'Email verification',
-      email: renderVerificationEmail({
-        firstName: FAKE_FIRST_NAME,
-        verifyUrl: FAKE_VERIFY_URL,
-        expiresInHours: 24,
-      }),
+      label: 'Email verification',
+      ...renderVerificationEmail({ firstName: FAKE.firstName, verifyUrl: FAKE.verifyUrl, expiresInHours: 24 }),
     },
     {
-      name: 'Password reset',
-      email: renderPasswordResetEmail({
-        firstName: FAKE_FIRST_NAME,
-        resetUrl: FAKE_RESET_URL,
-        expiresInMinutes: 60,
-      }),
+      label: 'Password reset',
+      ...renderPasswordResetEmail({ firstName: FAKE.firstName, resetUrl: FAKE.resetUrl, expiresInMinutes: 60 }),
     },
     {
-      name: 'Welcome (HR approved)',
-      email: renderWelcomeEmail({
-        firstName: FAKE_FIRST_NAME,
-        loginUrl: FAKE_LOGIN_URL,
-      }),
+      label: 'Welcome (HR approved)',
+      ...renderWelcomeEmail({ firstName: FAKE.firstName, loginUrl: FAKE.loginUrl }),
     },
     {
-      name: 'Account rejected',
-      email: renderRejectionEmail({
-        firstName: FAKE_FIRST_NAME,
-        rejectionReason: 'Internship slots are currently full.',
-        supportUrl: FAKE_SUPPORT_URL,
-      }),
+      label: 'Account rejected',
+      ...renderRejectionEmail({ firstName: FAKE.firstName, rejectionReason: 'Slots currently full.', supportUrl: FAKE.supportUrl }),
     },
   ];
 
   let passed = 0;
   let failed = 0;
 
-  for (const test of tests) {
-    process.stdout.write(`  Sending "${test.name}"... `);
-    const ok = await sendEmail({
-      to: TEST_RECIPIENT,
-      subject: `[TEST] ${test.email.subject}`,
-      html: test.email.html,
-      text: test.email.text,
-    });
-
-    if (ok) {
-      console.log('✅');
+  for (const [i, t] of templates.entries()) {
+    process.stdout.write(`  [${i + 2}/5] "${t.label}"... `);
+    try {
+      const info = await transport.sendMail({
+        from: sender,
+        to: recipients,
+        subject: `[TEST] ${t.subject}`,
+        html: t.html,
+        text: t.text,
+        category: 'Whippie Test',
+      });
+      console.log(`✅  messageId: ${(info as any).messageId ?? JSON.stringify(info)}`);
       passed++;
-    } else {
-      console.log('❌  (check console above for error details)');
+    } catch (err) {
+      console.log('❌');
+      console.error('   ', err);
       failed++;
     }
   }
 
   console.log(`\n─────────────────────────────────────────`);
-  console.log(`  ${passed} passed   ${failed} failed`);
+  console.log(`  ${passed + 1} passed   ${failed} failed`);
+  console.log('\n👉 Check sent logs at:');
+  console.log('   https://mailtrap.io/sending/email_logs\n');
 
-  if (passed > 0) {
-    console.log('\n👉 Check your sent logs at:');
-    console.log('   https://mailtrap.io/sending/email_logs\n');
-  }
-
-  if (failed > 0) {
-    process.exit(1);
-  }
+  if (failed > 0) process.exit(1);
 }
 
 run().catch((err) => {
