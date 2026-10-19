@@ -107,3 +107,33 @@ export const verifyEmailSchema = z.object({
 });
 
 export type VerifyEmailInput = z.infer<typeof verifyEmailSchema>['body'];
+
+// ─── Auth method detection ────────────────────────────────────────────────────
+
+export const authMethodQuerySchema = z.object({
+  query: z.object({
+    email: z
+      .string({ required_error: 'Email is required' })
+      .email('Invalid email address')
+      .toLowerCase(),
+  }),
+});
+
+export type AuthMethodQuery = z.infer<typeof authMethodQuerySchema>['query'];
+
+// ─── Link password ────────────────────────────────────────────────────────────
+
+export const linkPasswordSchema = z.object({
+  body: z.object({
+    password: z
+      .string({ required_error: 'Password is required' })
+      .min(8, 'Password must be at least 8 characters')
+      .max(72, 'Password must not exceed 72 characters')
+      .refine(
+        (pw) => /[a-zA-Z]/.test(pw) && /\d/.test(pw),
+        'Password must contain at least one letter and one number',
+      ),
+  }),
+});
+
+export type LinkPasswordInput = z.infer<typeof linkPasswordSchema>['body'];

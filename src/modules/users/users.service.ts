@@ -9,6 +9,9 @@ import { createNotification } from '../notifications/notification.service';
 import { NotificationType } from '../notifications/notification.types';
 import { logAction } from '../timeline/audit-log.service';
 import { AuditAction } from '../timeline/audit-log.types';
+import { sendEmail } from '../../lib/email';
+import { renderWelcomeEmail, renderRejectionEmail } from '../../lib/email-templates';
+import { env } from '../../config/env';
 
 // ─── HR verification queue ────────────────────────────────────────────────────
 // Returns paginated list of accounts pending HR verification,
@@ -121,6 +124,13 @@ export async function approveUser(
     targetUser: user.id,
   }).catch(() => {});
 
+  // Send welcome email — fire and forget, must not block approval
+  const rendered = renderWelcomeEmail({
+    firstName: user.firstName,
+    loginUrl: `${env.FRONTEND_URL}/login`,
+  });
+  void sendEmail({ to: user.email, subject: rendered.subject, html: rendered.html, text: rendered.text });
+
   return user;
 }
 
@@ -171,17 +181,25 @@ export async function rejectUser(
     detail: reason,
   }).catch(() => {});
 
+  // Send rejection email — fire and forget, must not block rejection
+  const rendered = renderRejectionEmail({
+    firstName: user.firstName,
+    rejectionReason: reason,
+    supportUrl: `${env.FRONTEND_URL}/login`,
+  });
+  void sendEmail({ to: user.email, subject: rendered.subject, html: rendered.html, text: rendered.text });
+
   return user;
 }
 
 // ─── Delete expired pending accounts ──────────────────────────────────────────
 // Called by the scheduled cleanup job.
-// Only deletes accounts that are still PENDING and whose
-// verificationExpiresAt has passed. Safe to run repeatedly.
+// Deletes accounts that are still UNVERIFIED_EMAIL or PENDING_HR_VERIFICATION
+// and whose verificationExpiresAt has passed. Safe to run repeatedly.
 
 export async function deleteExpiredPendingAccounts(): Promise<number> {
   const result = await User.deleteMany({
-    status: AccountStatus.PENDING_HR_VERIFICATION,
+    status: { $in: [AccountStatus.UNVERIFIED_EMAIL, AccountStatus.PENDING_HR_VERIFICATION] },
     verificationExpiresAt: { $lte: new Date() },
   });
 

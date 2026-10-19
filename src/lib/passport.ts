@@ -51,12 +51,21 @@ passport.use(
         let user = await User.findOne({ googleId });
         if (user) return done(null, user);
 
-        // 2. User has a password account with the same email → link Google to it
+        // 2. Password account with the same email → link Google to it
         user = await User.findOne({ email });
         if (user) {
+          // Security: only silently link if the password account has already
+          // verified their email. An unverified account could be a squatter.
+          // For fully new Google sign-ins where a password account already
+          // exists but email is UNVERIFIED, we redirect to "link via password first".
+          if (user.status === AccountStatus.UNVERIFIED_EMAIL) {
+            // Don't link — let the frontend handle this case via the error redirect
+            return done(null, false);
+          }
           user.googleId = googleId;
-          // If they previously had no authMethod recorded as Google, update it
-          // (preserve their existing role and status)
+          if (user.authMethod === AuthMethod.PASSWORD) {
+            user.authMethod = AuthMethod.BOTH;
+          }
           await user.save();
           return done(null, user);
         }

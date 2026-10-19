@@ -357,3 +357,87 @@ export async function getMe(userId: string) {
   }
   return user;
 }
+
+// ─── getAuthMethod ────────────────────────────────────────────────────────────
+// Section E — smart login detection.
+// Returns the auth method(s) for an email without revealing if the account exists.
+// We always return a result for non-existent emails too (returns "none") so
+// callers can't enumerate accounts by timing difference alone.
+
+export type AuthMethodResult = 'password' | 'google' | 'both' | 'none';
+
+export async function getAuthMethod(email: string): Promise<AuthMethodResult> {
+  const user = await User.findOne({ email: email.toLowerCase() });
+  if (!user) return 'none';
+
+  switch (user.authMethod) {
+    case AuthMethod.PASSWORD: return 'password';
+    case AuthMethod.GOOGLE:   return 'google';
+    case AuthMethod.BOTH:     return 'both';
+    default:                  return 'none';
+  }
+}
+
+// ─── linkPassword ─────────────────────────────────────────────────────────────
+// Adds a password to a Google-only account.
+// Requires the caller to be authenticated (account must be ACTIVE).
+
+export async function linkPassword(
+  userId: string,
+  newPassword: string,
+): Promise<void> {
+  const user = await User.findById(userId).select('+authMethod +passwordHash');
+  if (!user) throw createError('User not found.', 404);
+
+  if (user.authMethod === AuthMethod.PASSWORD) {
+    throw createError('This account already has a password.', 409);
+  }
+
+  if (user.authMethod === AuthMethod.BOTH) {
+    throw createError('This account already has a password linked.', 409);
+  }
+
+  user.passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+  user.authMethod = AuthMethod.BOTH;
+  await user.save();
+}
+
+// ─── unlinkGoogle ─────────────────────────────────────────────────────────────
+// Removes Google from a BOTH account. Requires a password to remain.
+
+export async function unlinkGoogle(userId: string): Promise<void> {
+  const user = await User.findById(userId).select('+authMethod +googleId');
+  if (!user) throw createError('User not found.', 404);
+
+  if (user.authMethod !== AuthMethod.BOTH) {
+    throw createError(
+      'Cannot remove Google sign-in — you must have a password set first.',
+      409,
+    );
+  }
+
+  user.googleId = undefined;
+  user.authMethod = AuthMethod.PASSWORD;
+  await user.save();
+}
+
+// ─── unlinkPassword ───────────────────────────────────────────────────────────
+// Removes password from a BOTH account. Requires Google to remain.
+
+export async function unlinkPassword(userId: string): Promise<void> {
+  const user = await User.findById(userId).select('+authMethod');
+  if (!user) throw createError('User not found.', 404);
+
+  if (user.authMethod !== AuthMethod.BOTH) {
+    throw createError(
+      'Cannot remove password sign-in — you must have Google linked first.',
+      409,
+    );
+  }
+
+  // Unset passwordHash via update (Mongoose won't persist undefined on save)
+  await User.findByIdAndUpdate(userId, {
+    $unset: { passwordHash: '' },
+    authMethod: AuthMethod.GOOGLE,
+  });
+}

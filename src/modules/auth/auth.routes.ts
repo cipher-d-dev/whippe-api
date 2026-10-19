@@ -11,6 +11,10 @@ import {
   verifyEmailHandler,
   forgotPasswordHandler,
   resetPasswordHandler,
+  authMethodHandler,
+  linkPasswordHandler,
+  unlinkGoogleHandler,
+  unlinkPasswordHandler,
 } from './auth.controller';
 import {
   googleAuthHandler,
@@ -70,6 +74,11 @@ router.post('/forgot-password', emailLimiter, forgotPasswordHandler);
 // POST /api/v1/auth/reset-password
 router.post('/reset-password', authLimiter, resetPasswordHandler);
 
+// ─── Smart login detection ─────────────────────────────────────────────────────
+
+// GET /api/v1/auth/method?email=...
+router.get('/method', emailLimiter, authMethodHandler);
+
 // ─── Google OAuth ─────────────────────────────────────────────────────────────
 
 // GET /api/v1/auth/google  — redirects to Google consent screen
@@ -85,5 +94,16 @@ router.post('/logout', authenticate, logoutHandler);
 
 // GET /api/v1/auth/me
 router.get('/me', authenticate, getMeHandler);
+
+// ─── Account linking (protected — must be authenticated) ───────────────────────
+
+// POST /api/v1/auth/link-password   — add a password to a Google-only account
+router.post('/link-password', authenticate, linkPasswordHandler);
+
+// POST /api/v1/auth/unlink-google   — remove Google from a BOTH account
+router.post('/unlink-google', authenticate, unlinkGoogleHandler);
+
+// POST /api/v1/auth/unlink-password — remove password from a BOTH account
+router.post('/unlink-password', authenticate, unlinkPasswordHandler);
 
 export default router;

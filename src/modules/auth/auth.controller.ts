@@ -7,6 +7,8 @@ import {
   forgotPasswordSchema,
   resetPasswordSchema,
   verifyEmailSchema,
+  authMethodQuerySchema,
+  linkPasswordSchema,
 } from './auth.schema';
 import {
   REFRESH_TOKEN_COOKIE,
@@ -238,6 +240,86 @@ export async function resetPasswordHandler(
       success: true,
       message:
         'Password reset successfully. You can now log in with your new password.',
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// ─── GET /auth/method?email=... ──────────────────────────────────────────────
+// Smart login detection — returns which sign-in methods are available for an
+// email. Public endpoint, rate-limited independently.
+
+export async function authMethodHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const { query } = authMethodQuerySchema.parse({ query: req.query });
+    const method = await authService.getAuthMethod(query.email);
+    res.status(200).json({
+      success: true,
+      data: { method },
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// ─── POST /auth/link-password ─────────────────────────────────────────────────
+// Adds a password to a Google-only account.
+
+export async function linkPasswordHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const { body } = linkPasswordSchema.parse({ body: req.body });
+    const user = getAuthUser(req);
+    await authService.linkPassword(user.id, body.password);
+    res.status(200).json({
+      success: true,
+      message: 'Password linked to your account successfully.',
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// ─── POST /auth/unlink-google ─────────────────────────────────────────────────
+
+export async function unlinkGoogleHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const user = getAuthUser(req);
+    await authService.unlinkGoogle(user.id);
+    res.status(200).json({
+      success: true,
+      message: 'Google sign-in removed from your account.',
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// ─── POST /auth/unlink-password ───────────────────────────────────────────────
+
+export async function unlinkPasswordHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const user = getAuthUser(req);
+    await authService.unlinkPassword(user.id);
+    res.status(200).json({
+      success: true,
+      message: 'Password sign-in removed from your account.',
     });
   } catch (err) {
     next(err);
