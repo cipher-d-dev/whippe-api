@@ -82,3 +82,14 @@ export async function updateDepartment(
 
   return dept;
 }
+
+// ─── Delete ───────────────────────────────────────────────────────────────────
+
+export async function deleteDepartment(id: string): Promise<void> {
+  if (!mongoose.isValidObjectId(id)) throw createError('Invalid department ID.', 400);
+
+  const dept = await Department.findById(id);
+  if (!dept) throw createError('Department not found.', 404);
+
+  await Department.findByIdAndDelete(id);
+}

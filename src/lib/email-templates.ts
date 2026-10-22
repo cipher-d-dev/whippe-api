@@ -1,33 +1,38 @@
 /**
- * email-templates.ts — Beautiful HTML + plain-text email templates.
+ * email-templates.ts — Modern, polished HTML & plain-text email templates.
  *
- * Design system:
- *  - Font: Plus Jakarta Sans via Google Fonts @import (falls back to system-ui)
- *  - Primary: #7C3AED (violet-600)
- *  - All layouts are table-based for Gmail/Outlook/Apple Mail compatibility
- *  - Each template has a unique accent colour for easy visual identification
+ * Design Architecture:
+ *  - Font: Clean, elegant system typography stack (Inter, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto)
+ *    which renders crisp in all email clients without layout shifting or missing webfont glitches.
+ *  - Palette: Contemporary neutral canvas with clean card containers, soft border styling, and refined micro-typography.
+ *  - High deliverability table-based structure engineered for Apple Mail, Gmail, Outlook & iOS/Android mail apps.
  */
 
-// ─── Shared constants ─────────────────────────────────────────────────────────
+// ─── Shared Theme Constants ───────────────────────────────────────────────────
 
-const BRAND      = 'Whippie';
-const VIOLET     = '#7C3AED';
-const VIOLET_DARK = '#5B21B6';
-const BG         = '#F5F3FF';   // violet-50
-const CARD       = '#FFFFFF';
-const TEXT_DARK  = '#0F172A';   // slate-900
-const TEXT_MID   = '#475569';   // slate-600
-const TEXT_LIGHT = '#94A3B8';   // slate-400
-const BORDER     = '#E2E8F0';
+const BRAND         = 'Whippie';
+const COMPANY_NAME  = 'DAAR Communications Plc';
 
-const FONT_IMPORT = `@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');`;
+// Colors
+const COLOR_PRIMARY = '#4F46E5'; // Indigo 600 - modern, tech-forward, high-contrast
+const BG_BODY       = '#F8FAFC'; // Slate 50
+const CARD_BG       = '#FFFFFF';
+const CARD_BORDER   = '#E2E8F0'; // Slate 200
+const TEXT_HEAD     = '#0F172A'; // Slate 900
+const TEXT_BODY     = '#334155'; // Slate 700
+const TEXT_MUTED    = '#64748B'; // Slate 500
+const TEXT_SUBTLE   = '#94A3B8'; // Slate 400
 
-// ─── Shared HTML wrapper ──────────────────────────────────────────────────────
+const FONT_FAMILY =
+  "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
+
+// ─── Shared HTML Wrapper ───────────────────────────────────────────────────────
 
 function wrap({
   preheader,
-  accentColor,
-  iconEmoji,
+  badgeText,
+  badgeBg,
+  badgeColor,
   headingHtml,
   bodyHtml,
   ctaLabel,
@@ -36,8 +41,9 @@ function wrap({
   footerNote,
 }: {
   preheader: string;
-  accentColor: string;
-  iconEmoji: string;
+  badgeText?: string;
+  badgeBg?: string;
+  badgeColor?: string;
   headingHtml: string;
   bodyHtml: string;
   ctaLabel?: string;
@@ -45,24 +51,49 @@ function wrap({
   ctaColor?: string;
   footerNote: string;
 }): string {
-  const cta = ctaLabel && ctaUrl
-    ? `
-      <!-- CTA button -->
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:28px 0 0 0;">
+  const cta =
+    ctaLabel && ctaUrl
+      ? `
+      <!-- Action CTA -->
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 32px 0 0 0;">
         <tr>
-          <td align="center">
-            <a href="${esc(ctaUrl)}"
-               style="display:inline-block;background:${ctaColor ?? VIOLET};color:#ffffff;font-family:'Plus Jakarta Sans',system-ui,sans-serif;font-size:15px;font-weight:700;text-decoration:none;padding:14px 32px;border-radius:14px;letter-spacing:-0.01em;">
-              ${esc(ctaLabel)}
-            </a>
+          <td align="left">
+            <table role="presentation" cellpadding="0" cellspacing="0">
+              <tr>
+                <td align="center" style="border-radius: 8px; background: ${ctaColor ?? COLOR_PRIMARY};">
+                  <a href="${esc(ctaUrl)}"
+                     target="_blank"
+                     style="display: inline-block; padding: 13px 28px; font-family: ${FONT_FAMILY}; font-size: 14px; font-weight: 600; color: #FFFFFF; text-decoration: none; border-radius: 8px; letter-spacing: -0.01em;">
+                    ${esc(ctaLabel)} &rarr;
+                  </a>
+                </td>
+              </tr>
+            </table>
           </td>
         </tr>
       </table>
-      <!-- Fallback link -->
-      <p style="margin:16px 0 0 0;text-align:center;font-family:'Plus Jakarta Sans',system-ui,sans-serif;font-size:12px;color:${TEXT_LIGHT};">
-        Or copy this link into your browser:<br/>
-        <a href="${esc(ctaUrl)}" style="color:${VIOLET};word-break:break-all;">${esc(ctaUrl)}</a>
-      </p>
+
+      <!-- Secondary Plain-text Link -->
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top: 24px; padding-top: 20px; border-top: 1px dashed ${CARD_BORDER};">
+        <tr>
+          <td>
+            <p style="margin: 0; font-family: ${FONT_FAMILY}; font-size: 12px; line-height: 1.5; color: ${TEXT_MUTED};">
+              Trouble clicking the button? Copy and paste this URL into your browser:
+            </p>
+            <p style="margin: 6px 0 0 0; font-family: ${FONT_FAMILY}; font-size: 12px; line-height: 1.4; color: ${COLOR_PRIMARY}; word-break: break-all;">
+              <a href="${esc(ctaUrl)}" style="color: ${COLOR_PRIMARY}; text-decoration: underline;">${esc(ctaUrl)}</a>
+            </p>
+          </td>
+        </tr>
+      </table>
+    `
+      : '';
+
+  const badge = badgeText
+    ? `
+      <span style="display: inline-block; padding: 4px 10px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; border-radius: 20px; background: ${badgeBg ?? '#EEF2FF'}; color: ${badgeColor ?? COLOR_PRIMARY}; margin-bottom: 16px;">
+        ${esc(badgeText)}
+      </span>
     `
     : '';
 
@@ -70,95 +101,90 @@ function wrap({
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <meta name="color-scheme" content="light"/>
   <title>${BRAND}</title>
   <style>
-    ${FONT_IMPORT}
-    body { margin:0; padding:0; background:${BG}; }
-    @media only screen and (max-width:600px) {
-      .card { padding:28px 20px !important; }
-      .logo-cell { padding-bottom:20px !important; }
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: ${BG_BODY};
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    @media only screen and (max-width: 600px) {
+      .outer-wrap { padding: 16px 8px !important; }
+      .inner-card { padding: 28px 20px !important; border-radius: 12px !important; }
+      .email-heading { font-size: 20px !important; }
     }
   </style>
 </head>
-<body style="margin:0;padding:0;background:${BG};">
+<body style="margin: 0; padding: 0; background-color: ${BG_BODY}; font-family: ${FONT_FAMILY};">
 
-  <!-- Preheader (hidden preview text) -->
-  <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;">${esc(preheader)}&nbsp;‌&nbsp;‌&nbsp;‌&nbsp;‌&nbsp;‌</div>
+  <!-- Preheader preview text (hidden) -->
+  <div style="display: none; max-height: 0; overflow: hidden; mso-hide: all;">
+    ${esc(preheader)}&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;
+  </div>
 
   <!-- Outer wrapper -->
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${BG};padding:40px 16px;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="outer-wrap" style="background-color: ${BG_BODY}; padding: 48px 16px;">
     <tr>
       <td align="center">
 
-        <!-- Card -->
-        <table role="presentation" width="560" cellpadding="0" cellspacing="0"
-               style="max-width:560px;width:100%;background:${CARD};border-radius:20px;border:1px solid ${BORDER};overflow:hidden;">
-
-          <!-- Accent bar -->
+        <!-- Header / Brand mark -->
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width: 540px; margin-bottom: 24px;">
           <tr>
-            <td style="background:${accentColor};height:4px;font-size:0;line-height:0;">&nbsp;</td>
-          </tr>
-
-          <!-- Content -->
-          <tr>
-            <td class="card" style="padding:36px 40px 32px;">
-
-              <!-- Logo + wordmark -->
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+            <td align="left">
+              <table role="presentation" cellpadding="0" cellspacing="0">
                 <tr>
-                  <td class="logo-cell" style="padding-bottom:28px;">
-                    <table role="presentation" cellpadding="0" cellspacing="0">
-                      <tr>
-                        <td style="background:${accentColor};border-radius:10px;width:36px;height:36px;text-align:center;vertical-align:middle;">
-                          <span style="font-size:18px;line-height:36px;">${iconEmoji}</span>
-                        </td>
-                        <td style="padding-left:10px;vertical-align:middle;">
-                          <span style="font-family:'Plus Jakarta Sans',system-ui,sans-serif;font-size:17px;font-weight:800;color:${TEXT_DARK};letter-spacing:-0.02em;">${BRAND}</span>
-                        </td>
-                      </tr>
-                    </table>
+                  <td style="background-color: ${COLOR_PRIMARY}; border-radius: 7px; width: 28px; height: 28px; text-align: center; vertical-align: middle;">
+                    <span style="font-family: ${FONT_FAMILY}; font-size: 15px; font-weight: 800; color: #FFFFFF; line-height: 28px;">W</span>
+                  </td>
+                  <td style="padding-left: 10px; vertical-align: middle;">
+                    <span style="font-family: ${FONT_FAMILY}; font-size: 16px; font-weight: 700; color: ${TEXT_HEAD}; letter-spacing: -0.02em;">
+                      ${BRAND}
+                    </span>
+                    <span style="margin-left: 6px; font-size: 12px; color: ${TEXT_SUBTLE}; font-weight: 400;">
+                      · Intern Portal
+                    </span>
                   </td>
                 </tr>
               </table>
-
-              <!-- Heading -->
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-                <tr>
-                  <td style="padding-bottom:16px;">
-                    ${headingHtml}
-                  </td>
-                </tr>
-              </table>
-
-              <!-- Body -->
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-                <tr>
-                  <td>
-                    ${bodyHtml}
-                    ${cta}
-                  </td>
-                </tr>
-              </table>
-
             </td>
           </tr>
+        </table>
 
-          <!-- Footer -->
+        <!-- Main Card Container -->
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="inner-card"
+               style="max-width: 540px; background-color: ${CARD_BG}; border: 1px solid ${CARD_BORDER}; border-radius: 14px; box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05); padding: 40px 36px; text-align: left;">
           <tr>
-            <td style="background:#FAFAFA;border-top:1px solid ${BORDER};padding:20px 40px;text-align:center;">
-              <p style="margin:0 0 4px 0;font-family:'Plus Jakarta Sans',system-ui,sans-serif;font-size:12px;color:${TEXT_LIGHT};">
+            <td>
+              ${badge}
+              <div style="margin-bottom: 20px;">
+                ${headingHtml}
+              </div>
+
+              <div>
+                ${bodyHtml}
+                ${cta}
+              </div>
+            </td>
+          </tr>
+        </table>
+
+        <!-- Footer -->
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width: 540px; margin-top: 24px; text-align: center;">
+          <tr>
+            <td style="padding: 0 12px;">
+              <p style="margin: 0 0 6px 0; font-family: ${FONT_FAMILY}; font-size: 12px; line-height: 1.5; color: ${TEXT_MUTED};">
                 ${esc(footerNote)}
               </p>
-              <p style="margin:0;font-family:'Plus Jakarta Sans',system-ui,sans-serif;font-size:12px;color:${TEXT_LIGHT};">
-                © ${new Date().getFullYear()} ${BRAND} · DAAR Communications
+              <p style="margin: 0; font-family: ${FONT_FAMILY}; font-size: 12px; line-height: 1.5; color: ${TEXT_SUBTLE};">
+                © ${new Date().getFullYear()} ${BRAND} · ${COMPANY_NAME}
               </p>
             </td>
           </tr>
-
         </table>
-        <!-- /Card -->
 
       </td>
     </tr>
@@ -178,30 +204,39 @@ function esc(s: string): string {
 }
 
 function bodyText(s: string) {
-  return `<p style="margin:0 0 14px 0;font-family:'Plus Jakarta Sans',system-ui,sans-serif;font-size:15px;line-height:1.65;color:${TEXT_MID};">${s}</p>`;
+  return `<p style="margin: 0 0 16px 0; font-family: ${FONT_FAMILY}; font-size: 15px; line-height: 1.6; color: ${TEXT_BODY};">${s}</p>`;
 }
 
 function heading(s: string) {
-  return `<h1 style="margin:0;font-family:'Plus Jakarta Sans',system-ui,sans-serif;font-size:22px;font-weight:800;color:${TEXT_DARK};letter-spacing:-0.025em;line-height:1.2;">${s}</h1>`;
+  return `<h1 class="email-heading" style="margin: 0; font-family: ${FONT_FAMILY}; font-size: 22px; font-weight: 700; color: ${TEXT_HEAD}; letter-spacing: -0.025em; line-height: 1.3;">${s}</h1>`;
 }
 
 function highlight(s: string) {
-  return `<span style="color:${VIOLET};font-weight:700;">${s}</span>`;
+  return `<strong style="color: ${TEXT_HEAD}; font-weight: 600;">${s}</strong>`;
 }
 
-function infoBox(lines: string[], color: string) {
-  const rows = lines.map(l =>
-    `<tr>
-      <td style="padding:6px 0;font-family:'Plus Jakarta Sans',system-ui,sans-serif;font-size:14px;color:${TEXT_MID};line-height:1.5;">
-        <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${color};vertical-align:middle;margin-right:10px;"></span>${l}
+function infoCard(lines: string[], borderColor = '#E2E8F0', bg = '#F8FAFC') {
+  const rows = lines
+    .map(
+      (l) => `
+    <tr>
+      <td style="padding: 5px 0; font-family: ${FONT_FAMILY}; font-size: 13px; color: ${TEXT_BODY}; line-height: 1.5;">
+        <span style="color: ${TEXT_MUTED}; margin-right: 8px;">•</span>${l}
       </td>
-    </tr>`,
-  ).join('');
+    </tr>`
+    )
+    .join('');
 
   return `
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
-           style="margin:20px 0 0 0;background:#F8F7FF;border:1px solid #EDE9FE;border-radius:12px;padding:0;">
-      <tr><td style="padding:16px 18px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0">${rows}</table></td></tr>
+           style="margin: 20px 0 4px 0; background-color: ${bg}; border: 1px solid ${borderColor}; border-radius: 8px; padding: 14px 16px;">
+      <tr>
+        <td>
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+            ${rows}
+          </table>
+        </td>
+      </tr>
     </table>`;
 }
 
@@ -222,40 +257,41 @@ export interface VerificationEmailInput {
 }
 
 export function renderVerificationEmail(input: VerificationEmailInput): RenderedEmail {
-  const subject = `Verify your ${BRAND} email address`;
+  const subject = `Verify your email address for ${BRAND}`;
 
   const html = wrap({
-    preheader: 'One click to confirm your email and get started.',
-    accentColor: VIOLET,
-    iconEmoji: '✉️',
-    headingHtml: heading(`Hi ${esc(input.firstName)}, confirm your email`),
+    preheader: 'Please confirm your email address to complete your registration.',
+    badgeText: 'Action Required',
+    badgeBg: '#EEF2FF',
+    badgeColor: '#4F46E5',
+    headingHtml: heading(`Confirm your email, ${esc(input.firstName)}`),
     bodyHtml: `
-      ${bodyText(`You're almost in. Click the button below to verify your email address and activate your ${highlight(BRAND)} account.`)}
-      ${bodyText(`Once verified, your account will be reviewed by HR before you can sign in.`)}
-      ${infoBox([
-        `This link expires in <strong>${input.expiresInHours} hour${input.expiresInHours === 1 ? '' : 's'}</strong>.`,
-        'The link can only be used once.',
-        "If you didn't sign up, you can safely ignore this email.",
-      ], VIOLET)}
+      ${bodyText(`Thank you for signing up for the ${highlight(BRAND)} internship platform.`)}
+      ${bodyText(`Please click the button below to verify your email address. Once verified, your profile will be queued for review by the HR team.`)}
+      ${infoCard([
+        `This link is valid for <strong>${input.expiresInHours} hour${input.expiresInHours === 1 ? '' : 's'}</strong>.`,
+        'This link can only be used once.',
+        "If you didn't create an account, you can safely ignore this message.",
+      ])}
     `,
-    ctaLabel: 'Verify my email',
+    ctaLabel: 'Verify Email Address',
     ctaUrl: input.verifyUrl,
-    ctaColor: VIOLET,
-    footerNote: `You received this because an account was created at ${BRAND} with this email address.`,
+    ctaColor: '#4F46E5',
+    footerNote: `You received this email because you registered on the ${BRAND} portal.`,
   });
 
   const text = [
     `Hi ${input.firstName},`,
     '',
-    `Please verify your email address to activate your ${BRAND} account.`,
-    `Once verified, HR will review your account before you can sign in.`,
+    `Please verify your email address to complete your ${BRAND} registration.`,
+    `Once confirmed, your account will be reviewed by HR.`,
     '',
-    `Verify your email (expires in ${input.expiresInHours} hours):`,
+    `Verify your email (valid for ${input.expiresInHours} hours):`,
     input.verifyUrl,
     '',
-    `If you didn't create a ${BRAND} account, ignore this email.`,
+    `If you did not create this account, please ignore this email.`,
     '',
-    `© ${new Date().getFullYear()} ${BRAND}`,
+    `© ${new Date().getFullYear()} ${BRAND} · ${COMPANY_NAME}`,
   ].join('\n');
 
   return { subject, html, text };
@@ -271,39 +307,39 @@ export interface PasswordResetEmailInput {
 
 export function renderPasswordResetEmail(input: PasswordResetEmailInput): RenderedEmail {
   const subject = `Reset your ${BRAND} password`;
-  const AMBER = '#D97706';
 
   const html = wrap({
-    preheader: 'A password reset was requested for your account.',
-    accentColor: AMBER,
-    iconEmoji: '🔑',
+    preheader: 'A password reset link has been generated for your account.',
+    badgeText: 'Security Notice',
+    badgeBg: '#FEF3C7',
+    badgeColor: '#D97706',
     headingHtml: heading(`Reset your password`),
     bodyHtml: `
-      ${bodyText(`Hi ${esc(input.firstName)}, we received a request to reset the password on your ${highlight(BRAND)} account.`)}
-      ${bodyText(`Click the button below to choose a new password.`)}
-      ${infoBox([
-        `This link expires in <strong>${input.expiresInMinutes} minute${input.expiresInMinutes === 1 ? '' : 's'}</strong>.`,
-        'The link can only be used once.',
-        "If you didn't request this, your password hasn't been changed.",
-      ], AMBER)}
+      ${bodyText(`Hi ${esc(input.firstName)}, we received a request to reset the password for your ${highlight(BRAND)} account.`)}
+      ${bodyText(`Click below to set a new password:`)}
+      ${infoCard([
+        `This reset link will expire in <strong>${input.expiresInMinutes} minutes</strong>.`,
+        'For security, this link can only be used once.',
+        "If you did not request this change, your credentials remain secure and no action is required.",
+      ], '#FDE68A', '#FFFBEB')}
     `,
-    ctaLabel: 'Reset my password',
+    ctaLabel: 'Reset Password',
     ctaUrl: input.resetUrl,
-    ctaColor: AMBER,
-    footerNote: `You received this because a password reset was requested for your ${BRAND} account.`,
+    ctaColor: '#D97706',
+    footerNote: `You received this email because a password reset was requested for your account.`,
   });
 
   const text = [
     `Hi ${input.firstName},`,
     '',
-    `We received a request to reset the password on your ${BRAND} account.`,
+    `We received a request to reset your password for your ${BRAND} account.`,
     '',
-    `Reset your password (expires in ${input.expiresInMinutes} minutes):`,
+    `Reset link (expires in ${input.expiresInMinutes} minutes):`,
     input.resetUrl,
     '',
-    `If you didn't request a password reset, ignore this email — your password hasn't changed.`,
+    `If you did not request this, no action is needed.`,
     '',
-    `© ${new Date().getFullYear()} ${BRAND}`,
+    `© ${new Date().getFullYear()} ${BRAND} · ${COMPANY_NAME}`,
   ].join('\n');
 
   return { subject, html, text };
@@ -317,38 +353,39 @@ export interface WelcomeEmailInput {
 }
 
 export function renderWelcomeEmail(input: WelcomeEmailInput): RenderedEmail {
-  const subject = `Welcome to ${BRAND} — you're approved! 🎉`;
-  const EMERALD = '#059669';
+  const subject = `Your ${BRAND} account has been approved`;
 
   const html = wrap({
-    preheader: `Great news — your account has been approved by HR.`,
-    accentColor: EMERALD,
-    iconEmoji: '🎉',
-    headingHtml: heading(`You're in, ${esc(input.firstName)}!`),
+    preheader: 'Your profile has been approved by HR. You may now log in.',
+    badgeText: 'Approved',
+    badgeBg: '#ECFDF5',
+    badgeColor: '#059669',
+    headingHtml: heading(`Welcome aboard, ${esc(input.firstName)}`),
     bodyHtml: `
-      ${bodyText(`HR has approved your ${highlight(BRAND)} account. You can now sign in and start your internship journey.`)}
-      ${infoBox([
-        'Check in daily using the attendance feature.',
-        'View and complete your assigned tasks.',
-        'Submit daily and weekly reports to your supervisor.',
-      ], EMERALD)}
+      ${bodyText(`Your ${highlight(BRAND)} internship account has been verified and approved by the HR administration team.`)}
+      ${bodyText(`You can now sign in to your dashboard to access all features:`)}
+      ${infoCard([
+        'Daily GPS-verified check-in and attendance logging',
+        'Direct task tracking, milestones, and project submissions',
+        'Weekly activity logs and supervisor progress reviews',
+      ], '#A7F3D0', '#F0FDF4')}
     `,
-    ctaLabel: 'Sign in to Whippie',
+    ctaLabel: 'Go to Intern Dashboard',
     ctaUrl: input.loginUrl,
-    ctaColor: EMERALD,
-    footerNote: `You received this because your ${BRAND} account was approved by HR.`,
+    ctaColor: '#059669',
+    footerNote: `You received this email because your account was approved by HR.`,
   });
 
   const text = [
     `Hi ${input.firstName},`,
     '',
-    `Great news — HR has approved your ${BRAND} account!`,
-    `You can now sign in and start using the platform.`,
+    `Great news — your ${BRAND} internship account has been approved!`,
+    `You can now sign in to access your attendance, tasks, and reports.`,
     '',
-    'Sign in:',
+    `Login URL:`,
     input.loginUrl,
     '',
-    `© ${new Date().getFullYear()} ${BRAND}`,
+    `© ${new Date().getFullYear()} ${BRAND} · ${COMPANY_NAME}`,
   ].join('\n');
 
   return { subject, html, text };
@@ -363,41 +400,43 @@ export interface RejectionEmailInput {
 }
 
 export function renderRejectionEmail(input: RejectionEmailInput): RenderedEmail {
-  const subject = `Update on your ${BRAND} account`;
-  const ROSE = '#E11D48';
+  const subject = `Update regarding your ${BRAND} registration`;
 
-  const reasonRow = input.rejectionReason
-    ? infoBox([`Reason: <strong>${esc(input.rejectionReason)}</strong>`], ROSE)
+  const reasonContent = input.rejectionReason
+    ? infoCard([`Administrative note: <strong>${esc(input.rejectionReason)}</strong>`], '#FECDD3', '#FFF1F2')
     : '';
 
   const html = wrap({
-    preheader: `An update regarding your ${BRAND} account application.`,
-    accentColor: ROSE,
-    iconEmoji: '📋',
-    headingHtml: heading(`Account update`),
+    preheader: 'An update regarding the status of your intern registration.',
+    badgeText: 'Registration Status',
+    badgeBg: '#F1F5F9',
+    badgeColor: '#475569',
+    headingHtml: heading(`Application Update`),
     bodyHtml: `
-      ${bodyText(`Hi ${esc(input.firstName)}, thank you for your interest in ${highlight(BRAND)}.`)}
-      ${bodyText(`Unfortunately, your account request was not approved at this time.`)}
-      ${reasonRow}
-      ${bodyText(`If you believe this is a mistake or would like more information, please reach out to your HR administrator.`)}
+      ${bodyText(`Hi ${esc(input.firstName)}, thank you for registering with the ${highlight(BRAND)} internship platform.`)}
+      ${bodyText(`After review, your application could not be approved at this time.`)}
+      ${reasonContent}
+      ${bodyText(`If you believe this decision is in error or requires clarification, please contact your departmental coordinator or HR supervisor.`)}
     `,
-    ctaLabel: 'Contact HR',
+    ctaLabel: 'Contact HR Support',
     ctaUrl: input.supportUrl,
-    ctaColor: ROSE,
-    footerNote: `You received this because an account was created at ${BRAND} with this email address.`,
+    ctaColor: '#475569',
+    footerNote: `You received this email regarding your registration status at ${BRAND}.`,
   });
 
   const text = [
     `Hi ${input.firstName},`,
     '',
     `Thank you for your interest in ${BRAND}.`,
-    `Unfortunately, your account request was not approved at this time.`,
+    `After administrative review, your account application could not be approved at this time.`,
     input.rejectionReason ? `Reason: ${input.rejectionReason}` : '',
     '',
-    `If you believe this is a mistake, contact your HR administrator.`,
+    `If you believe this is in error, please reach out to your HR administrator.`,
     '',
-    `© ${new Date().getFullYear()} ${BRAND}`,
-  ].filter(l => l !== undefined).join('\n');
+    `© ${new Date().getFullYear()} ${BRAND} · ${COMPANY_NAME}`,
+  ]
+    .filter((l) => l !== undefined)
+    .join('\n');
 
   return { subject, html, text };
 }

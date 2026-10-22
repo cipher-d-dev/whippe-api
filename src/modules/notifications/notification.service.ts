@@ -4,6 +4,7 @@ import { NotificationType } from './notification.types';
 import { createError } from '../../middleware/error-handler';
 import { ListNotificationsQuery } from './notification.schema';
 import { PaginatedResponse } from '../users/user.types';
+import { sendPushToUser } from './push.service';
 
 // ─── createNotification ───────────────────────────────────────────────────────
 // Internal utility called by other services — never called directly by clients.
@@ -29,7 +30,14 @@ export async function createNotification(
     };
   }
 
-  return Notification.create(doc);
+  const notification = await Notification.create(doc);
+
+  // Fire-and-forget push — do not let push failure affect the DB write
+  sendPushToUser(recipientId, { title, body }).catch((err) => {
+    console.warn('[push] sendPushToUser error:', err);
+  });
+
+  return notification;
 }
 
 // ─── List notifications for the authenticated user ────────────────────────────

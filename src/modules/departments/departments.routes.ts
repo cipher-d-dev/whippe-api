@@ -7,6 +7,7 @@ import {
   listDepartmentsHandler,
   getDepartmentByIdHandler,
   updateDepartmentHandler,
+  deleteDepartmentHandler,
 } from './department.controller';
 
 const router = Router();
@@ -17,8 +18,9 @@ router.use(authenticate);
 router.get('/', listDepartmentsHandler);
 router.get('/:id', getDepartmentByIdHandler);
 
-// HR only — create/update
+// HR only — create/update/delete
 router.post('/', authorize(Role.HR), createDepartmentHandler);
 router.patch('/:id', authorize(Role.HR), updateDepartmentHandler);
+router.delete('/:id', authorize(Role.HR), deleteDepartmentHandler);
 
 export default router;

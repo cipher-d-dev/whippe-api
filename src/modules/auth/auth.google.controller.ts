@@ -47,13 +47,13 @@ export function googleCallbackHandler(
           !err && !user
             ? 'email_unverified_link_first'
             : 'google_failed';
-        res.redirect(`${env.FRONTEND_URL}/auth/login?error=${reason}`);
+        res.redirect(`${env.FRONTEND_URL}/login?error=${reason}`);
         return;
       }
 
       try {
         if (user.status === AccountStatus.REJECTED) {
-          res.redirect(`${env.FRONTEND_URL}/auth/login?error=account_rejected`);
+          res.redirect(`${env.FRONTEND_URL}/login?error=account_rejected`);
           return;
         }
 

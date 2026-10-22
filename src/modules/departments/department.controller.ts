@@ -46,3 +46,12 @@ export async function updateDepartmentHandler(
     res.status(200).json({ success: true, message: 'Department updated.', data: { department: dept } });
   } catch (err) { next(err); }
 }
+
+export async function deleteDepartmentHandler(
+  req: Request, res: Response, next: NextFunction,
+): Promise<void> {
+  try {
+    await deptService.deleteDepartment(req.params.id);
+    res.status(200).json({ success: true, message: 'Department deleted successfully.' });
+  } catch (err) { next(err); }
+}

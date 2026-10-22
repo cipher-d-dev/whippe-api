@@ -27,6 +27,12 @@ const envSchema = z.object({
   GOOGLE_CLIENT_SECRET: z.string().min(1, 'GOOGLE_CLIENT_SECRET is required'),
   GOOGLE_CALLBACK_URL: z.string().url('GOOGLE_CALLBACK_URL must be a valid URL'),
 
+  // ── Web Push (VAPID) ──────────────────────────────────────────────────────
+  // Optional in dev — push delivery is silently skipped when absent.
+  VAPID_PUBLIC_KEY:  z.string().optional(),
+  VAPID_PRIVATE_KEY: z.string().optional(),
+  VAPID_SUBJECT:     z.string().optional(),
+
   // ── Appwrite Storage ──────────────────────────────────────────────────────
   // Required once file uploads are live. Leave as empty strings in dev
   // until a real Appwrite project is configured.

@@ -32,6 +32,11 @@ function auditEnv(): void {
     // ── Geofence ──────────────────────────────────────────────────────────────
     { name: 'OFFICE_LAT',           set: !!process.env['OFFICE_LAT'],          impact: 'Attendance geofence — defaults to placeholder coords' },
     { name: 'OFFICE_LNG',           set: !!process.env['OFFICE_LNG'],          impact: 'Attendance geofence — defaults to placeholder coords' },
+
+    // ── Web Push ──────────────────────────────────────────────────────────────
+    { name: 'VAPID_PUBLIC_KEY',     set: !!process.env['VAPID_PUBLIC_KEY'],    impact: 'Push notifications disabled — interns will only get in-app polling' },
+    { name: 'VAPID_PRIVATE_KEY',    set: !!process.env['VAPID_PRIVATE_KEY'],   impact: 'Push notifications disabled' },
+    { name: 'VAPID_SUBJECT',        set: !!process.env['VAPID_SUBJECT'],       impact: 'Push notifications disabled' },
   ];
 
   const missing = vars.filter((v) => !v.set);

@@ -5,8 +5,24 @@ import {
   handleMarkOneRead,
   handleMarkAllRead,
 } from './notification.controller';
+import {
+  handleGetVapidKey,
+  handleSubscribe,
+  handleUnsubscribe,
+} from './push.controller';
 
 const router = Router();
+
+// ─── Push subscription (auth optional for VAPID key, required for sub/unsub) ─
+
+// Public — the browser needs this to subscribe before the user is necessarily logged in
+router.get('/vapid-public-key', handleGetVapidKey);
+
+// Authenticated push subscription management
+router.post('/subscribe',   authenticate, handleSubscribe);
+router.delete('/subscribe', authenticate, handleUnsubscribe);
+
+// ─── Notification reads ───────────────────────────────────────────────────────
 
 // All notification routes require authentication.
 // Users see only their own notifications — enforced in the service layer.
