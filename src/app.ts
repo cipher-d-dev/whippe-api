@@ -11,6 +11,9 @@ import { notFound } from './middleware/not-found';
 
 const app = express();
 
+// Trust reverse proxy (Render, Cloudflare, AWS, etc.) so express-rate-limit and IP detection work
+app.set('trust proxy', 1);
+
 // ─── Security ────────────────────────────────────────────────────────────────
 app.use(helmet());
 
