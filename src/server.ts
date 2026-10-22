@@ -1,6 +1,7 @@
 import { env } from './config/env';
 import { connectDatabase, disconnectDatabase } from './config/database';
 import { startCleanupJob, stopCleanupJob } from './lib/cleanup';
+import { ensureDefaultHR } from './config/seed';
 import app from './app';
 
 // ─── Startup env-var audit ────────────────────────────────────────────────────
@@ -57,6 +58,11 @@ async function start(): Promise<void> {
   // Print env audit before anything else
   auditEnv();
   await connectDatabase();
+
+  // Ensure default HR admin exists in production / initial setup
+  await ensureDefaultHR().catch((err) => {
+    console.warn('⚠️  Could not seed initial HR account:', err);
+  });
 
   // Start background jobs after DB is connected
   startCleanupJob();
