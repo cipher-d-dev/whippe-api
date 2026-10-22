@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import { Intern, IInternDocument } from './intern.model';
+import { Supervisor } from '../supervisors/supervisor.model';
 import { User } from '../users/user.model';
 import { AccountStatus, Role } from '../auth/auth.types';
 import { createError } from '../../middleware/error-handler';
@@ -60,6 +61,8 @@ export async function createIntern(
 
 export async function listInterns(
   query: ListInternsQuery,
+  actorUserId?: string,
+  actorRole?: Role,
 ): Promise<PaginatedResponse<IInternDocument>> {
   const { page, limit, status, internshipType, department, supervisor, search } = query;
   const skip = (page - 1) * limit;
@@ -70,7 +73,15 @@ export async function listInterns(
   if (department && mongoose.isValidObjectId(department)) {
     filter['department'] = new mongoose.Types.ObjectId(department);
   }
-  if (supervisor && mongoose.isValidObjectId(supervisor)) {
+
+  // If caller is a supervisor, restrict to only their assigned interns
+  if (actorRole === Role.SUPERVISOR && actorUserId) {
+    const supervisorRecord = await Supervisor.findOne({ user: actorUserId });
+    if (!supervisorRecord) {
+      return { data: [], total: 0, page, limit, totalPages: 0 };
+    }
+    filter['supervisor'] = supervisorRecord._id;
+  } else if (supervisor && mongoose.isValidObjectId(supervisor)) {
     filter['supervisor'] = new mongoose.Types.ObjectId(supervisor);
   }
   if (search) {

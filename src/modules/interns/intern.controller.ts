@@ -38,7 +38,8 @@ export async function listInternsHandler(
 ): Promise<void> {
   try {
     const { query } = listInternsSchema.parse({ query: req.query });
-    const result = await internService.listInterns(query);
+    const actor = getAuthUser(req);
+    const result = await internService.listInterns(query, actor.id, actor.role);
     res.status(200).json({ success: true, ...result });
   } catch (err) { next(err); }
 }

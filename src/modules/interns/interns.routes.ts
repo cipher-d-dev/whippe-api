@@ -18,18 +18,17 @@ const router = Router();
 
 router.use(authenticate);
 
-// ─── HR only ──────────────────────────────────────────────────────────────────
+// ─── HR & Supervisors ────────────────────────────────────────────────────────
+router.get('/', authorize(Role.HR, Role.SUPERVISOR), listInternsHandler);
 
+// ─── HR only ──────────────────────────────────────────────────────────────────
 router.post('/', authorize(Role.HR), createInternHandler);
-router.get('/', authorize(Role.HR), listInternsHandler);
 
 // ─── Intern: own record (must be before /:id) ─────────────────────────────────
-
 router.get('/me', authorize(Role.INTERN), getMyInternRecordHandler);
 
-// ─── HR or Intern (ownership enforced in controller) ─────────────────────────
-
-router.get('/:id', authorize(Role.HR, Role.INTERN), getInternByIdHandler);
+// ─── HR, Supervisor, or Intern (permission enforced in controller) ────────────
+router.get('/:id', authorize(Role.HR, Role.SUPERVISOR, Role.INTERN), getInternByIdHandler);
 router.patch('/:id', authorize(Role.HR, Role.INTERN), updateInternHandler);
 
 // ─── Assignment endpoints — HR only ───────────────────────────────────────────
