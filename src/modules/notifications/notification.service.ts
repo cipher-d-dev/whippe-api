@@ -40,6 +40,27 @@ export async function createNotification(
   return notification;
 }
 
+// ─── notifyAllHR ─────────────────────────────────────────────────────────────
+// Broadcast an important administrative alert to all active HR admins.
+
+export async function notifyAllHR(
+  type: NotificationType,
+  title: string,
+  body: string,
+  relatedEntity?: { kind: string; id: string },
+): Promise<void> {
+  const User = mongoose.model('User');
+  const hrUsers = await User.find({ role: 'HR', status: 'ACTIVE' }, '_id');
+
+  await Promise.all(
+    hrUsers.map((hr) =>
+      createNotification(hr._id.toString(), type, title, body, relatedEntity).catch((err) =>
+        console.warn(`[notifyAllHR] Failed to notify HR ${hr._id}:`, err)
+      )
+    )
+  );
+}
+
 // ─── List notifications for the authenticated user ────────────────────────────
 
 export async function listNotifications(

@@ -11,7 +11,7 @@ import {
   ListReportsQuery,
 } from './report.schema';
 import { PaginatedResponse } from '../users/user.types';
-import { createNotification } from '../notifications/notification.service';
+import { createNotification, notifyAllHR } from '../notifications/notification.service';
 import { NotificationType } from '../notifications/notification.types';
 
 // ─── Create (intern only — saved as DRAFT) ────────────────────────────────────
@@ -112,6 +112,15 @@ export async function submitReport(
   report.status = ReportStatus.SUBMITTED;
   report.submittedAt = new Date();
   await report.save();
+
+  // Notify HR of the new report submission
+  notifyAllHR(
+    NotificationType.REPORT_SUBMITTED,
+    'New Intern Report Submitted',
+    `${intern.firstName} ${intern.lastName} submitted their ${report.type.toLowerCase()} progress report.`,
+    { kind: 'Report', id: report.id },
+  ).catch((err) => console.warn('[report.service] Failed to notify HR of report submission:', err));
+
   return report;
 }
 

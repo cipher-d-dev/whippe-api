@@ -26,6 +26,8 @@ import {
 } from '../../lib/email-templates';
 import { env } from '../../config/env';
 import { createError } from '../../middleware/error-handler';
+import { notifyAllHR } from '../notifications/notification.service';
+import { NotificationType } from '../notifications/notification.types';
 
 const BCRYPT_ROUNDS = 12;
 const VERIFICATION_WINDOW_DAYS = 30;
@@ -137,6 +139,14 @@ export async function verifyEmail(
     emailVerificationTokenHash: null,
     emailVerificationExpiresAt: null,
   });
+
+  // Notify HR that a candidate has verified email and is waiting in the verification queue
+  notifyAllHR(
+    NotificationType.NEW_INTERN_PENDING,
+    'New candidate pending verification',
+    `${user.firstName} ${user.lastName} (${user.email}) verified their email and is awaiting HR approval.`,
+    { kind: 'User', id: user.id },
+  ).catch((err) => console.warn('[auth.service] Failed to notify HR of verified user:', err));
 
   return { ok: true };
 }

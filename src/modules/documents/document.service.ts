@@ -12,7 +12,7 @@ import {
   ListDocumentsQuery,
 } from './document.schema';
 import { PaginatedResponse } from '../users/user.types';
-import { createNotification } from '../notifications/notification.service';
+import { createNotification, notifyAllHR } from '../notifications/notification.service';
 import { NotificationType } from '../notifications/notification.types';
 import { logAction } from '../timeline/audit-log.service';
 import { AuditAction } from '../timeline/audit-log.types';
@@ -110,6 +110,7 @@ export async function getDocumentById(id: string): Promise<IDocumentDocument> {
     .populate('intern', 'firstName lastName')
     .populate('requirement', 'label type');
   if (!doc) throw createError('Document record not found.', 404);
+
   return doc;
 }
 
@@ -133,6 +134,7 @@ export async function markPhysicalReceived(
     { new: true },
   );
   if (!doc) throw createError('Document record not found.', 404);
+
   return doc;
 }
 
@@ -157,6 +159,15 @@ export async function registerUpload(
     { new: true },
   );
   if (!doc) throw createError('Document record not found.', 404);
+
+  // Notify HR that a new document was digitally uploaded and needs review
+  notifyAllHR(
+    NotificationType.DOCUMENT_UPLOADED,
+    'New Document Uploaded',
+    `A new file ("${input.originalFilename}") was uploaded for document: ${doc.label}.`,
+    { kind: 'Document', id: doc.id },
+  ).catch((err) => console.warn('[document.service] Failed to notify HR of upload:', err));
+
   return doc;
 }
 

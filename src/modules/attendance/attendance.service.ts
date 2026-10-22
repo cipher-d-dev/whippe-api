@@ -11,6 +11,8 @@ import {
   ListAttendanceQuery,
 } from './attendance.schema';
 import { PaginatedResponse } from '../users/user.types';
+import { notifyAllHR } from '../notifications/notification.service';
+import { NotificationType } from '../notifications/notification.types';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -82,7 +84,7 @@ export async function checkIn(
     status = AttendanceStatus.ACCEPTED;
   }
 
-  return Attendance.create({
+  const record = await Attendance.create({
     intern: intern._id,
     date: today,
     checkType: input.checkType,
@@ -97,6 +99,17 @@ export async function checkIn(
     userAgent,
     flagReasons: flagReasons.length > 0 ? flagReasons : undefined,
   });
+
+  if (status === AttendanceStatus.FLAGGED) {
+    notifyAllHR(
+      NotificationType.ATTENDANCE_FLAGGED,
+      'Flagged Attendance Check-in',
+      `Attendance record for ${intern.firstName} ${intern.lastName} was flagged (${flagReasons.join(', ')}).`,
+      { kind: 'Attendance', id: record._id.toString() },
+    ).catch((err) => console.warn('[attendance.service] Failed to notify HR of flagged attendance:', err));
+  }
+
+  return record;
 }
 
 // ─── list ─────────────────────────────────────────────────────────────────────
