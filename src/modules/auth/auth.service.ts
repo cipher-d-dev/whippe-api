@@ -87,7 +87,7 @@ export async function signup(input: SignupInput) {
 
   // Send verification email — fire and forget. Failure here must not block
   // signup; the user can request a resend from the verify-email page.
-  const verifyUrl = `${env.FRONTEND_URL}/auth/verify-email?token=${verificationToken}`;
+  const verifyUrl = `${env.FRONTEND_URL}/verify-email?token=${verificationToken}`;
   const rendered = renderVerificationEmail({
     firstName: user.firstName,
     verifyUrl,
@@ -169,7 +169,7 @@ export async function resendVerificationEmail(email: string): Promise<void> {
   user.emailVerificationExpiresAt = expiresAt;
   await user.save();
 
-  const verifyUrl = `${env.FRONTEND_URL}/auth/verify-email?token=${token}`;
+  const verifyUrl = `${env.FRONTEND_URL}/verify-email?token=${token}`;
   const rendered = renderVerificationEmail({
     firstName: user.firstName,
     verifyUrl,
@@ -207,7 +207,7 @@ export async function requestPasswordReset(email: string): Promise<void> {
   user.passwordResetExpiresAt = expiresAt;
   await user.save();
 
-  const resetUrl = `${env.FRONTEND_URL}/auth/reset-password?token=${token}`;
+  const resetUrl = `${env.FRONTEND_URL}/reset-password?token=${token}`;
   const rendered = renderPasswordResetEmail({
     firstName: user.firstName,
     resetUrl,
