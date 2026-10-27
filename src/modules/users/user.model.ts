@@ -28,7 +28,7 @@ export interface IUser {
   passwordResetExpiresAt?: Date;
 
   // HR verification audit trail
-  verificationExpiresAt: Date;     // 30 days after account creation
+  verificationExpiresAt?: Date;    // 30 days after account creation (for pending registrations)
   verifiedAt?: Date;
   verifiedBy?: mongoose.Types.ObjectId;
   rejectedAt?: Date;
@@ -138,7 +138,7 @@ const userSchema = new Schema<IUserDocument, IUserModel>(
     // ─── HR verification ─────────────────────────────────────────────────────
     verificationExpiresAt: {
       type: Date,
-      required: true,
+      required: false,
     },
 
     verifiedAt: Date,

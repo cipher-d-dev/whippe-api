@@ -64,9 +64,6 @@ export async function createSupervisor(
       rawPassword = input.password || crypto.randomBytes(6).toString('hex'); // e.g. "a1b2c3d4e5f6"
       const passwordHash = await bcrypt.hash(rawPassword, BCRYPT_ROUNDS);
 
-      const verificationExpiresAt = new Date();
-      verificationExpiresAt.setDate(verificationExpiresAt.getDate() + 3650); // 10 years (active staff)
-
       user = await User.create({
         email: input.email.toLowerCase(),
         passwordHash,
@@ -75,7 +72,6 @@ export async function createSupervisor(
         role: Role.SUPERVISOR,
         status: AccountStatus.ACTIVE,
         authMethod: AuthMethod.PASSWORD,
-        verificationExpiresAt,
         verifiedAt: new Date(),
         verifiedBy: new mongoose.Types.ObjectId(hrUserId),
       });

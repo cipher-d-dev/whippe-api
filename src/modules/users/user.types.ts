@@ -12,7 +12,7 @@ export interface UserResponse {
   role: Role;
   status: AccountStatus;
   authMethod: AuthMethod;
-  verificationExpiresAt: Date;
+  verificationExpiresAt?: Date;
   verifiedAt?: Date;
   verifiedBy?: string;
   rejectedAt?: Date;
