@@ -8,6 +8,8 @@ import {
   getUserByIdHandler,
   approveUserHandler,
   rejectUserHandler,
+  getAvatarUploadInfoHandler,
+  updateAvatarHandler,
 } from './users.controller';
 
 const router = Router();
@@ -35,6 +37,10 @@ router.patch('/:userId/approve', authorize(Role.HR), approveUserHandler);
 router.patch('/:userId/reject', authorize(Role.HR), rejectUserHandler);
 
 // ─── Any authenticated user ────────────────────────────────────────────────────
+// Avatar endpoints for the authenticated user
+router.get('/me/avatar-upload-info', getAvatarUploadInfoHandler);
+router.patch('/me/avatar', updateAvatarHandler);
+
 // HR: any user by ID. Intern/Supervisor: redirected to own profile in controller.
 
 // GET /api/v1/users/:userId

@@ -40,3 +40,14 @@ export const listUsersSchema = z.object({
 });
 
 export type ListUsersQuery = z.infer<typeof listUsersSchema>['query'];
+
+// ─── Avatar ───────────────────────────────────────────────────────────────────
+
+export const updateAvatarSchema = z.object({
+  body: z.object({
+    avatarUrl: z.string().url('Must be a valid URL'),
+  }),
+});
+
+export type UpdateAvatarBody = z.infer<typeof updateAvatarSchema>['body'];
+

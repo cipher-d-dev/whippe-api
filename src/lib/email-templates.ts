@@ -435,7 +435,65 @@ export function renderRejectionEmail(input: RejectionEmailInput): RenderedEmail 
     '',
     `© ${new Date().getFullYear()} ${BRAND} · ${COMPANY_NAME}`,
   ]
-    .filter((l) => l !== undefined)
+    .filter((l): l is string => Boolean(l))
+    .join('\n');
+
+  return { subject, html, text };
+}
+
+// ─── 5. Supervisor welcome / invitation ────────────────────────────────────────
+
+export interface SupervisorInviteEmailInput {
+  firstName: string;
+  email: string;
+  temporaryPassword?: string;
+  loginUrl: string;
+  departmentName?: string;
+}
+
+export function renderSupervisorInviteEmail(input: SupervisorInviteEmailInput): RenderedEmail {
+  const subject = `Welcome to ${BRAND} — Your Supervisor Account is Ready`;
+
+  const credDetails = [
+    `Official Email: <strong>${esc(input.email)}</strong>`,
+  ];
+  if (input.departmentName) {
+    credDetails.push(`Department / SBU: <strong>${esc(input.departmentName)}</strong>`);
+  }
+  if (input.temporaryPassword) {
+    credDetails.push(`Temporary Password: <strong style="font-family: monospace; font-size: 15px; letter-spacing: 0.05em;">${esc(input.temporaryPassword)}</strong>`);
+  }
+
+  const html = wrap({
+    preheader: 'Your supervisor account has been created for DAAR Communications internship operations.',
+    badgeText: 'Staff Account Created',
+    badgeBg: '#EEF2FF',
+    badgeColor: COLOR_PRIMARY,
+    headingHtml: heading(`Welcome to ${BRAND}`),
+    bodyHtml: `
+      ${bodyText(`Hi ${esc(input.firstName)}, an official supervisor account has been provisioned for you by HR Administration.`)}
+      ${infoCard(credDetails, '#C7D2FE', '#EEF2FF')}
+      ${bodyText(`You can now sign in to the web portal to review assigned interns, track attendance, approve weekly reports, and complete milestone evaluations.`)}
+      ${input.temporaryPassword ? bodyText(`<em>Please sign in and update your password under your profile settings.</em>`) : ''}
+    `,
+    ctaLabel: 'Sign in to Staff Portal',
+    ctaUrl: input.loginUrl,
+    footerNote: `You received this email because an administrative staff account was created for you at ${COMPANY_NAME}.`,
+  });
+
+  const text = [
+    `Hi ${input.firstName},`,
+    '',
+    `An official supervisor account has been created for you on ${BRAND}.`,
+    `Email: ${input.email}`,
+    input.departmentName ? `Department: ${input.departmentName}` : '',
+    input.temporaryPassword ? `Temporary Password: ${input.temporaryPassword}` : '',
+    '',
+    `Sign in here: ${input.loginUrl}`,
+    '',
+    `© ${new Date().getFullYear()} ${BRAND} · ${COMPANY_NAME}`,
+  ]
+    .filter(Boolean)
     .join('\n');
 
   return { subject, html, text };

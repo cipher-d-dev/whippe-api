@@ -1,8 +1,11 @@
 import mongoose from 'mongoose';
+import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 import { Supervisor, ISupervisorDocument } from './supervisor.model';
-import { User } from '../users/user.model';
+import { User, IUserDocument } from '../users/user.model';
 import { Intern } from '../interns/intern.model';
-import { Role, AccountStatus } from '../auth/auth.types';
+import { Department } from '../departments/department.model';
+import { Role, AccountStatus, AuthMethod } from '../auth/auth.types';
 import { createError } from '../../middleware/error-handler';
 import {
   CreateSupervisorInput,
@@ -11,6 +14,11 @@ import {
 } from './supervisor.schema';
 import { PaginatedResponse } from '../users/user.types';
 import { IInternDocument } from '../interns/intern.model';
+import { env } from '../../config/env';
+import { sendEmail } from '../../lib/email';
+import { renderSupervisorInviteEmail } from '../../lib/email-templates';
+
+const BCRYPT_ROUNDS = 12;
 
 // ─── Create ───────────────────────────────────────────────────────────────────
 
@@ -18,30 +26,72 @@ export async function createSupervisor(
   input: CreateSupervisorInput,
   hrUserId: string,
 ): Promise<ISupervisorDocument> {
-  if (!mongoose.isValidObjectId(input.userId)) {
-    throw createError('Invalid userId.', 400);
+  let user: IUserDocument | null = null;
+  let rawPassword = input.password;
+
+  if (input.userId) {
+    if (!mongoose.isValidObjectId(input.userId)) {
+      throw createError('Invalid userId.', 400);
+    }
+    user = await User.findById(input.userId);
+    if (!user) throw createError('User not found.', 404);
+
+    if (user.role !== Role.SUPERVISOR) {
+      throw createError('A supervisor profile can only be created for a user with the SUPERVISOR role.', 400);
+    }
+
+    if (user.status !== AccountStatus.ACTIVE) {
+      throw createError('A supervisor profile can only be created for an active account.', 409);
+    }
+
+    const existing = await Supervisor.findOne({ user: input.userId });
+    if (existing) throw createError('A supervisor profile already exists for this user.', 409);
+  } else if (input.email) {
+    // Check if an account already exists with this email
+    const existingUser = await User.findOne({ email: input.email.toLowerCase() });
+    if (existingUser) {
+      // If user already exists as active supervisor without a profile, attach to it
+      const existingProfile = await Supervisor.findOne({ user: existingUser._id });
+      if (existingProfile) {
+        throw createError('A supervisor profile already exists for this email.', 409);
+      }
+      if (existingUser.role !== Role.SUPERVISOR) {
+        throw createError(`An account with this email already exists with role ${existingUser.role}.`, 409);
+      }
+      user = existingUser;
+    } else {
+      // Create new User account directly for this supervisor
+      rawPassword = input.password || crypto.randomBytes(6).toString('hex'); // e.g. "a1b2c3d4e5f6"
+      const passwordHash = await bcrypt.hash(rawPassword, BCRYPT_ROUNDS);
+
+      user = await User.create({
+        email: input.email.toLowerCase(),
+        passwordHash,
+        firstName: input.firstName,
+        lastName: input.lastName,
+        role: Role.SUPERVISOR,
+        status: AccountStatus.ACTIVE,
+        authMethod: AuthMethod.PASSWORD,
+      });
+    }
+  } else {
+    throw createError('Either userId or email is required.', 400);
   }
-
-  const user = await User.findById(input.userId);
-  if (!user) throw createError('User not found.', 404);
-
-  if (user.role !== Role.SUPERVISOR) {
-    throw createError('A supervisor profile can only be created for a user with the SUPERVISOR role.', 400);
-  }
-
-  if (user.status !== AccountStatus.ACTIVE) {
-    throw createError('A supervisor profile can only be created for an active account.', 409);
-  }
-
-  const existing = await Supervisor.findOne({ user: input.userId });
-  if (existing) throw createError('A supervisor profile already exists for this user.', 409);
 
   if (input.department && !mongoose.isValidObjectId(input.department)) {
     throw createError('Invalid department ID.', 400);
   }
 
-  return Supervisor.create({
-    user: new mongoose.Types.ObjectId(input.userId),
+  let departmentName: string | undefined;
+  if (input.department) {
+    const dept = await Department.findById(input.department);
+    if (dept) {
+      departmentName = dept.subsidiary ? `${dept.name} (${dept.subsidiary})` : dept.name;
+    }
+  }
+
+  const supervisor = await Supervisor.create({
+    user: user._id,
     firstName: input.firstName,
     lastName: input.lastName,
     phone: input.phone,
@@ -50,6 +100,26 @@ export async function createSupervisor(
       : undefined,
     createdBy: new mongoose.Types.ObjectId(hrUserId),
   });
+
+  // Send invitation email if email is present
+  if (user.email) {
+    const rendered = renderSupervisorInviteEmail({
+      firstName: input.firstName,
+      email: user.email,
+      temporaryPassword: rawPassword,
+      loginUrl: `${env.FRONTEND_URL}/login`,
+      departmentName,
+    });
+
+    void sendEmail({
+      to: user.email,
+      subject: rendered.subject,
+      html: rendered.html,
+      text: rendered.text,
+    });
+  }
+
+  return supervisor;
 }
 
 // ─── List ─────────────────────────────────────────────────────────────────────

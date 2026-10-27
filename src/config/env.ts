@@ -20,7 +20,7 @@ const envSchema = z.object({
   // ── Office geofence — DAAR Communications HQ ─────────────────────────────
   OFFICE_LAT: z.coerce.number({ required_error: 'OFFICE_LAT is required' }),
   OFFICE_LNG: z.coerce.number({ required_error: 'OFFICE_LNG is required' }),
-  OFFICE_RADIUS_METERS: z.coerce.number().positive().default(100),
+  OFFICE_RADIUS_METERS: z.coerce.number().positive().default(200),
 
   // ── Google OAuth ──────────────────────────────────────────────────────────
   GOOGLE_CLIENT_ID: z.string().min(1, 'GOOGLE_CLIENT_ID is required'),

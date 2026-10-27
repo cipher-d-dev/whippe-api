@@ -225,3 +225,16 @@ export function assertCanActOnRole(targetRole: Role): void {
     );
   }
 }
+
+// ─── Update Avatar ────────────────────────────────────────────────────────────
+
+export async function updateAvatar(
+  userId: string,
+  avatarUrl: string,
+): Promise<IUserDocument> {
+  const user = await getUserById(userId);
+  user.avatarUrl = avatarUrl;
+  await user.save();
+  return user;
+}
+

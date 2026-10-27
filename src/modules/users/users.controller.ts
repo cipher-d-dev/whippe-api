@@ -4,7 +4,9 @@ import {
   approveUserSchema,
   rejectUserSchema,
   listUsersSchema,
+  updateAvatarSchema,
 } from './users.schema';
+import { generateUploadInfo } from '../../lib/appwrite';
 import { getAuthUser } from '../../middleware/auth';
 
 // ─── GET /users/verification-queue ───────────────────────────────────────────
@@ -125,6 +127,45 @@ export async function rejectUserHandler(
     res.status(200).json({
       success: true,
       message: 'Account rejected.',
+      data: { user: updated },
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// ─── GET /users/me/avatar-upload-info ──────────────────────────────────────────
+// Any authenticated user can get Appwrite upload parameters for their avatar.
+
+export async function getAvatarUploadInfoHandler(
+  _req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const uploadInfo = generateUploadInfo();
+    res.status(200).json({ success: true, data: { uploadInfo } });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// ─── PATCH /users/me/avatar ───────────────────────────────────────────────────
+// Any authenticated user updates their own avatar.
+
+export async function updateAvatarHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const { body } = updateAvatarSchema.parse({ body: req.body });
+    const actor = getAuthUser(req);
+    const updated = await usersService.updateAvatar(actor.id, body.avatarUrl);
+
+    res.status(200).json({
+      success: true,
+      message: 'Avatar updated successfully.',
       data: { user: updated },
     });
   } catch (err) {

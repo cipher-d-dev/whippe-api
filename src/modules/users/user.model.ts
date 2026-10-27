@@ -9,6 +9,7 @@ export interface IUser {
   passwordHash?: string;           // undefined for Google-only accounts
   firstName: string;
   lastName: string;
+  avatarUrl?: string;
   role: Role;
   status: AccountStatus;
   authMethod: AuthMethod;
@@ -76,6 +77,11 @@ const userSchema = new Schema<IUserDocument, IUserModel>(
     lastName: {
       type: String,
       required: true,
+      trim: true,
+    },
+
+    avatarUrl: {
+      type: String,
       trim: true,
     },
 
