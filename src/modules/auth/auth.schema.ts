@@ -137,3 +137,21 @@ export const linkPasswordSchema = z.object({
 });
 
 export type LinkPasswordInput = z.infer<typeof linkPasswordSchema>['body'];
+
+// ─── Change password (authenticated) ──────────────────────────────────────────
+
+export const changePasswordSchema = z.object({
+  body: z.object({
+    currentPassword: z.string({ required_error: 'Current password is required' }).min(1),
+    newPassword: z
+      .string({ required_error: 'New password is required' })
+      .min(8, 'New password must be at least 8 characters')
+      .max(72, 'New password must not exceed 72 characters')
+      .refine(
+        (pw) => /[a-zA-Z]/.test(pw) && /\d/.test(pw),
+        'New password must contain at least one letter and one number',
+      ),
+  }),
+});
+
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>['body'];

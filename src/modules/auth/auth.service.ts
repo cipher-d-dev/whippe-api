@@ -453,3 +453,26 @@ export async function unlinkPassword(userId: string): Promise<void> {
     authMethod: AuthMethod.GOOGLE,
   });
 }
+
+// ─── changePassword ───────────────────────────────────────────────────────────
+// Allows an authenticated user (HR, Supervisor, Intern) to update their password.
+
+export async function changePassword(
+  userId: string,
+  input: { currentPassword: string; newPassword: string },
+): Promise<void> {
+  const user = await User.findById(userId).select('+passwordHash +authMethod');
+  if (!user) throw createError('User not found.', 404);
+
+  if (!user.passwordHash) {
+    throw createError('This account does not have a password set. Use link-password instead.', 400);
+  }
+
+  const valid = await bcrypt.compare(input.currentPassword, user.passwordHash);
+  if (!valid) {
+    throw createError('The current password you entered is incorrect.', 400);
+  }
+
+  user.passwordHash = await bcrypt.hash(input.newPassword, BCRYPT_ROUNDS);
+  await user.save();
+}

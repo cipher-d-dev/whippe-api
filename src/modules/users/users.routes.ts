@@ -10,6 +10,7 @@ import {
   rejectUserHandler,
   getAvatarUploadInfoHandler,
   updateAvatarHandler,
+  deleteUserHandler,
 } from './users.controller';
 
 const router = Router();
@@ -44,6 +45,8 @@ router.patch('/me/avatar', updateAvatarHandler);
 // HR: any user by ID. Intern/Supervisor: redirected to own profile in controller.
 
 // GET /api/v1/users/:userId
-router.get('/:userId', getUserByIdHandler);
+// DELETE /api/v1/users/:userId
+router.delete('/:userId', authorize(Role.HR), deleteUserHandler);
+
 
 export default router;

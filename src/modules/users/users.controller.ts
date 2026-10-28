@@ -153,6 +153,22 @@ export async function getAvatarUploadInfoHandler(
 // ─── PATCH /users/me/avatar ───────────────────────────────────────────────────
 // Any authenticated user updates their own avatar.
 
+export async function deleteUserHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const { userId } = req.params;
+    const actor = getAuthUser(req);
+    // HR only enforced by route
+    await usersService.deleteUser(userId);
+    res.status(200).json({ success: true, message: 'User deleted.' });
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function updateAvatarHandler(
   req: Request,
   res: Response,

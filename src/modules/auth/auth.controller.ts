@@ -9,6 +9,7 @@ import {
   verifyEmailSchema,
   authMethodQuerySchema,
   linkPasswordSchema,
+  changePasswordSchema,
 } from './auth.schema';
 import {
   REFRESH_TOKEN_COOKIE,
@@ -320,6 +321,26 @@ export async function unlinkPasswordHandler(
     res.status(200).json({
       success: true,
       message: 'Password sign-in removed from your account.',
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// ─── POST /auth/change-password ───────────────────────────────────────────────
+
+export async function changePasswordHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const { body } = changePasswordSchema.parse({ body: req.body });
+    const user = getAuthUser(req);
+    await authService.changePassword(user.id, body);
+    res.status(200).json({
+      success: true,
+      message: 'Password updated successfully.',
     });
   } catch (err) {
     next(err);

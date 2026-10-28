@@ -15,6 +15,7 @@ import {
   linkPasswordHandler,
   unlinkGoogleHandler,
   unlinkPasswordHandler,
+  changePasswordHandler,
 } from './auth.controller';
 import {
   googleAuthHandler,
@@ -105,5 +106,8 @@ router.post('/unlink-google', authenticate, unlinkGoogleHandler);
 
 // POST /api/v1/auth/unlink-password — remove password from a BOTH account
 router.post('/unlink-password', authenticate, unlinkPasswordHandler);
+
+// POST /api/v1/auth/change-password — update password for logged-in user
+router.post('/change-password', authenticate, authLimiter, changePasswordHandler);
 
 export default router;
