@@ -101,6 +101,54 @@ export async function approveUser(
   return user;
 }
 
+// ─── Reject ───────────────────────────────────────────────────────────────────
+export async function rejectUser(
+  userId: string,
+  hrUserId: string,
+  reason: string,
+): Promise<IUserDocument> {
+  if (!mongoose.isValidObjectId(userId)) {
+    throw createError('Invalid user ID.', 400);
+  }
+  const user = await User.findById(userId);
+  if (!user) {
+    throw createError('User not found.', 404);
+  }
+  if (user.status !== AccountStatus.PENDING_HR_VERIFICATION) {
+    throw createError(
+      `Cannot reject an account with status: ${user.status}.`,
+      409,
+    );
+  }
+  user.status = AccountStatus.REJECTED;
+  user.rejectionReason = reason;
+  await user.save();
+
+  // Notify user & audit
+  await createNotification(
+    user.id,
+    NotificationType.ACCOUNT_REJECTED,
+    'Account registration rejected',
+    `Your Whippe registration was not approved: ${reason}`,
+  ).catch(() => {});
+  await logAction({
+    action: AuditAction.ACCOUNT_REJECTED,
+    performedBy: hrUserId,
+    targetUser: user.id,
+    detail: reason,
+  }).catch(() => {});
+
+  // Send rejection email
+  const rendered = renderRejectionEmail({
+    firstName: user.firstName,
+    rejectionReason: reason,
+    supportUrl: `${env.FRONTEND_URL}/support`,
+  });
+  void sendEmail({ to: user.email, subject: rendered.subject, html: rendered.html, text: rendered.text });
+
+  return user;
+}
+
 // ─── Delete user (HR) ────────────────────────────────────────────────────────
 export async function deleteUser(userId: string): Promise<void> {
   if (!mongoose.isValidObjectId(userId)) {

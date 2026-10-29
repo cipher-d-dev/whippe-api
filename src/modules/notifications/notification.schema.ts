@@ -20,3 +20,12 @@ export const listNotificationsSchema = z.object({
 });
 
 export type ListNotificationsQuery = z.infer<typeof listNotificationsSchema>;
+
+export const broadcastNotificationSchema = z.object({
+  target: z.enum(['INTERNS', 'SUPERVISORS', 'BOTH']),
+  title: z.string().min(1, 'Title is required').max(120, 'Title too long'),
+  body: z.string().min(1, 'Message body is required').max(1000, 'Message body too long'),
+});
+
+export type BroadcastNotificationInput = z.infer<typeof broadcastNotificationSchema>;
+

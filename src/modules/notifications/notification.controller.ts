@@ -5,7 +5,9 @@ import {
   listNotifications,
   markOneRead,
   markAllRead,
+  broadcastNotification,
 } from './notification.service';
+import { broadcastNotificationSchema } from './notification.schema';
 
 // ─── GET /api/v1/notifications ────────────────────────────────────────────────
 
@@ -63,6 +65,27 @@ export async function handleMarkAllRead(
       success: true,
       message: `${count} notification${count !== 1 ? 's' : ''} marked as read.`,
       count,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// ─── POST /api/v1/notifications/broadcast (HR only) ──────────────────────────
+
+export async function handleBroadcastNotification(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const input = broadcastNotificationSchema.parse(req.body);
+    const result = await broadcastNotification(input);
+
+    res.status(200).json({
+      success: true,
+      message: `Broadcast sent to ${result.count} recipient(s).`,
+      data: result,
     });
   } catch (err) {
     next(err);

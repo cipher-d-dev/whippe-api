@@ -125,3 +125,42 @@ export async function markAllRead(userId: string): Promise<{ count: number }> {
 
   return { count: result.modifiedCount };
 }
+
+// ─── Broadcast notifications (HR only) ────────────────────────────────────────
+
+export async function broadcastNotification(
+  input: { target: 'INTERNS' | 'SUPERVISORS' | 'BOTH'; title: string; body: string },
+): Promise<{ count: number }> {
+  const User = mongoose.model('User');
+  let roleFilter: unknown;
+
+  if (input.target === 'INTERNS') {
+    roleFilter = 'INTERN';
+  } else if (input.target === 'SUPERVISORS') {
+    roleFilter = 'SUPERVISOR';
+  } else {
+    roleFilter = { $in: ['INTERN', 'SUPERVISOR'] };
+  }
+
+  const recipients = await User.find(
+    { role: roleFilter, status: 'ACTIVE' },
+    '_id',
+  );
+
+  const notificationsToCreate = recipients.map((u) => ({
+    recipient: u._id,
+    type: NotificationType.BROADCAST,
+    title: input.title,
+    body: input.body,
+  }));
+
+  if (notificationsToCreate.length > 0) {
+    await Notification.insertMany(notificationsToCreate);
+    // Push notify recipients asynchronously
+    recipients.forEach((u) => {
+      sendPushToUser(u._id.toString(), { title: input.title, body: input.body }).catch(() => {});
+    });
+  }
+
+  return { count: notificationsToCreate.length };
+}

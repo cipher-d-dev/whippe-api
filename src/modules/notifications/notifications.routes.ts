@@ -1,9 +1,12 @@
 import { Router } from 'express';
 import { authenticate } from '../../middleware/auth';
+import { authorize } from '../../middleware/authorize';
+import { Role } from '../auth/auth.types';
 import {
   handleListNotifications,
   handleMarkOneRead,
   handleMarkAllRead,
+  handleBroadcastNotification,
 } from './notification.controller';
 import {
   handleGetVapidKey,
@@ -36,5 +39,8 @@ router.patch('/read-all', authenticate, handleMarkAllRead);
 
 // PATCH /api/v1/notifications/:id/read — mark one as read
 router.patch('/:id/read', authenticate, handleMarkOneRead);
+
+// POST /api/v1/notifications/broadcast — broadcast to interns, supervisors, or both (HR only)
+router.post('/broadcast', authenticate, authorize(Role.HR), handleBroadcastNotification);
 
 export default router;
