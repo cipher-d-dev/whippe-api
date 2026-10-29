@@ -76,7 +76,12 @@ export async function listInterns(
 
   // If caller is a supervisor, restrict to only their assigned interns
   if (actorRole === Role.SUPERVISOR && actorUserId) {
-    const supervisorRecord = await Supervisor.findOne({ user: actorUserId });
+    const supervisorRecord = await Supervisor.findOne({
+      $or: [
+        { user: new mongoose.Types.ObjectId(actorUserId) },
+        { user: actorUserId },
+      ],
+    });
     if (!supervisorRecord) {
       return { data: [], total: 0, page, limit, totalPages: 0 };
     }
