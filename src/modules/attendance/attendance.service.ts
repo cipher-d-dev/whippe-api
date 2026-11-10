@@ -117,7 +117,7 @@ export async function checkIn(
 export async function listAttendance(
   query: ListAttendanceQuery,
 ): Promise<PaginatedResponse<IAttendanceDocument>> {
-  const { page, limit, intern, status, checkType, from, to } = query;
+  const { page, limit, intern, status, checkType, date, from, to } = query;
   const skip = (page - 1) * limit;
 
   const filter: Record<string, unknown> = {};
@@ -127,7 +127,14 @@ export async function listAttendance(
   }
   if (status) filter['status'] = status;
   if (checkType) filter['checkType'] = checkType;
-  if (from || to) {
+
+  if (date) {
+    // If a specific date is requested (e.g. "2026-11-10"), match the start-of-day UTC
+    const parsedDate = new Date(date);
+    if (!isNaN(parsedDate.getTime())) {
+      filter['date'] = toDateOnly(parsedDate);
+    }
+  } else if (from || to) {
     const dateFilter: Record<string, Date> = {};
     if (from) dateFilter['$gte'] = from;
     if (to) dateFilter['$lte'] = to;
