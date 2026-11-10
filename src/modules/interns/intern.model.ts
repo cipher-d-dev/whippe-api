@@ -10,13 +10,17 @@ export interface IIntern {
   // ── Personal information ──────────────────────────────────────────────────
   firstName: string;
   lastName: string;
+  gender?: 'MALE' | 'FEMALE';
   phone?: string;
   address?: string;
 
   // ── School / programme information ────────────────────────────────────────
   institution: string;           // University, polytechnic, etc.
+  institutionLocation?: string;   // e.g. "OJO, LAGOS STATE" or "TOLL GATE IBADAN, OYO STATE"
   course: string;                // Course/discipline being studied
   level?: string;                // e.g. 100L, HND 2, NYSC batch
+  stateCode?: string;            // e.g. "LA/25A/14362" (NYSC)
+  callUpNumber?: string;         // e.g. "NYSC/CUO/2025/182518" (NYSC)
 
   // ── Internship / placement information ───────────────────────────────────
   internshipType: InternshipType;
@@ -70,6 +74,11 @@ const internSchema = new Schema<IInternDocument, IInternModel>(
       trim: true,
     },
 
+    gender: {
+      type: String,
+      enum: ['MALE', 'FEMALE'],
+    },
+
     phone: {
       type: String,
       trim: true,
@@ -87,6 +96,11 @@ const internSchema = new Schema<IInternDocument, IInternModel>(
       trim: true,
     },
 
+    institutionLocation: {
+      type: String,
+      trim: true,
+    },
+
     course: {
       type: String,
       required: true,
@@ -94,6 +108,16 @@ const internSchema = new Schema<IInternDocument, IInternModel>(
     },
 
     level: {
+      type: String,
+      trim: true,
+    },
+
+    stateCode: {
+      type: String,
+      trim: true,
+    },
+
+    callUpNumber: {
       type: String,
       trim: true,
     },

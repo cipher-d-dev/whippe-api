@@ -22,6 +22,8 @@ export const createInternSchema = z.object({
       .min(1, 'Last name is required')
       .max(100),
 
+    gender: z.enum(['MALE', 'FEMALE']).optional(),
+
     phone: z.string().trim().max(30).optional(),
 
     address: z.string().trim().max(300).optional(),
@@ -32,6 +34,8 @@ export const createInternSchema = z.object({
       .min(1, 'Institution is required')
       .max(200),
 
+    institutionLocation: z.string().trim().max(200).optional(),
+
     course: z
       .string({ required_error: 'Course is required' })
       .trim()
@@ -39,6 +43,9 @@ export const createInternSchema = z.object({
       .max(200),
 
     level: z.string().trim().max(50).optional(),
+
+    stateCode: z.string().trim().max(50).optional(),
+    callUpNumber: z.string().trim().max(50).optional(),
 
     internshipType: z.nativeEnum(InternshipType, {
       required_error: 'Internship type is required',
@@ -65,11 +72,15 @@ export const updateInternSchema = z.object({
     .object({
       firstName: z.string().trim().min(1).max(100).optional(),
       lastName: z.string().trim().min(1).max(100).optional(),
+      gender: z.enum(['MALE', 'FEMALE']).optional(),
       phone: z.string().trim().max(30).optional(),
       address: z.string().trim().max(300).optional(),
       institution: z.string().trim().min(1).max(200).optional(),
+      institutionLocation: z.string().trim().max(200).optional(),
       course: z.string().trim().min(1).max(200).optional(),
       level: z.string().trim().max(50).optional(),
+      stateCode: z.string().trim().max(50).optional(),
+      callUpNumber: z.string().trim().max(50).optional(),
       internshipType: z.nativeEnum(InternshipType).optional(),
       status: z.nativeEnum(InternshipStatus).optional(),
       startDate: z.coerce.date().optional(),
