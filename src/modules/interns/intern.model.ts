@@ -9,6 +9,7 @@ export interface IIntern {
 
   // ── Personal information ──────────────────────────────────────────────────
   firstName: string;
+  middleName?: string;
   lastName: string;
   gender?: 'MALE' | 'FEMALE';
   phone?: string;
@@ -65,6 +66,11 @@ const internSchema = new Schema<IInternDocument, IInternModel>(
     firstName: {
       type: String,
       required: true,
+      trim: true,
+    },
+
+    middleName: {
+      type: String,
       trim: true,
     },
 

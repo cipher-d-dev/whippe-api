@@ -16,6 +16,8 @@ export const createInternSchema = z.object({
       .min(1, 'First name is required')
       .max(100),
 
+    middleName: z.string().trim().max(100).optional(),
+
     lastName: z
       .string({ required_error: 'Last name is required' })
       .trim()
@@ -71,6 +73,7 @@ export const updateInternSchema = z.object({
   body: z
     .object({
       firstName: z.string().trim().min(1).max(100).optional(),
+      middleName: z.string().trim().max(100).optional(),
       lastName: z.string().trim().min(1).max(100).optional(),
       gender: z.enum(['MALE', 'FEMALE']).optional(),
       phone: z.string().trim().max(30).optional(),
