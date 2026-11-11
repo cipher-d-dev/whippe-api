@@ -45,6 +45,22 @@ export async function listUsersHandler(
   }
 }
 
+// ─── GET /users/unlinked-interns ──────────────────────────────────────────────
+// HR only — active approved intern user accounts that do not have an intern record yet.
+
+export async function getUnlinkedInternsHandler(
+  _req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const unlinked = await usersService.getUnlinkedInternUsers();
+    res.status(200).json({ success: true, data: { users: unlinked } });
+  } catch (err) {
+    next(err);
+  }
+}
+
 // ─── GET /users/:userId ───────────────────────────────────────────────────────
 // HR: any user. Intern/Supervisor: own profile only (enforced below).
 

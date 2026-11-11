@@ -46,6 +46,21 @@ export async function listUsers(
   return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
 }
 
+// ─── Get approved intern accounts without an intern profile (unlinked) ────────
+export async function getUnlinkedInternUsers(): Promise<IUserDocument[]> {
+  // Dynamically import or require Intern model to avoid circular dependency
+  const Intern = mongoose.model('Intern');
+  const existingInternUserIds = await Intern.distinct('user');
+
+  return User.find({
+    role: Role.INTERN,
+    status: AccountStatus.ACTIVE,
+    _id: { $nin: existingInternUserIds },
+  })
+    .sort({ createdAt: -1 })
+    .select('firstName lastName email role status authMethod createdAt');
+}
+
 // ─── Get user by id ───────────────────────────────────────────────────────────
 export async function getUserById(userId: string): Promise<IUserDocument> {
   if (!mongoose.isValidObjectId(userId)) {

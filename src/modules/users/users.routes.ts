@@ -5,6 +5,7 @@ import { Role } from '../auth/auth.types';
 import {
   getVerificationQueueHandler,
   listUsersHandler,
+  getUnlinkedInternsHandler,
   getUserByIdHandler,
   approveUserHandler,
   rejectUserHandler,
@@ -26,6 +27,14 @@ router.get(
   '/verification-queue',
   authorize(Role.HR),
   getVerificationQueueHandler,
+);
+
+// GET /api/v1/users/unlinked-interns
+// Approved active intern accounts waiting for profile creation
+router.get(
+  '/unlinked-interns',
+  authorize(Role.HR),
+  getUnlinkedInternsHandler,
 );
 
 // GET /api/v1/users
