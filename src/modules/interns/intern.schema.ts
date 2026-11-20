@@ -30,11 +30,7 @@ export const createInternSchema = z.object({
 
     address: z.string().trim().max(300).optional(),
 
-    institution: z
-      .string({ required_error: 'Institution is required' })
-      .trim()
-      .min(1, 'Institution is required')
-      .max(200),
+    institution: z.string().trim().max(200).optional(),
 
     institutionLocation: z.string().trim().max(200).optional(),
 
@@ -58,7 +54,19 @@ export const createInternSchema = z.object({
 
     startDate: z.coerce.date().optional(),
     endDate: z.coerce.date().optional(),
-  }),
+  }).refine(
+    (data) => {
+      // If internshipType is INTERNSHIP, institution is required.
+      if (data.internshipType === InternshipType.INTERNSHIP) {
+        return !!data.institution && data.institution.trim().length > 0;
+      }
+      return true;
+    },
+    {
+      message: 'Institution is required for standard interns',
+      path: ['institution'],
+    },
+  ),
 });
 
 export type CreateInternInput = z.infer<typeof createInternSchema>['body'];

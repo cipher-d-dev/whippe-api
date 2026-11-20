@@ -16,7 +16,7 @@ export interface IIntern {
   address?: string;
 
   // ── School / programme information ────────────────────────────────────────
-  institution: string;           // University, polytechnic, etc.
+  institution?: string;           // University, polytechnic, etc. (optional for NYSC)
   institutionLocation?: string;   // e.g. "OJO, LAGOS STATE" or "TOLL GATE IBADAN, OYO STATE"
   course: string;                // Course/discipline being studied
   level?: string;                // e.g. 100L, HND 2, NYSC batch
@@ -98,7 +98,6 @@ const internSchema = new Schema<IInternDocument, IInternModel>(
     // ── School ────────────────────────────────────────────────────────────────
     institution: {
       type: String,
-      required: true,
       trim: true,
     },
 
