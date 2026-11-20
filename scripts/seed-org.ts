@@ -175,11 +175,23 @@ async function run() {
     let userId: mongoose.Types.ObjectId;
     let tempPassword = '';
 
+    if (shouldSendEmails || !existingUser) {
+      tempPassword = `DAAR@${crypto.randomInt(100000, 999999)}`;
+    }
+
     if (existingUser) {
       userId = existingUser._id as mongoose.Types.ObjectId;
       console.log(`  ✓ User account already exists: ${sup.firstName} ${sup.lastName} (${normalizedEmail})`);
+      if (shouldSendEmails && tempPassword) {
+        const salt = await bcrypt.genSalt(12);
+        const passwordHash = await bcrypt.hash(tempPassword, salt);
+        await usersCol.updateOne(
+          { _id: userId },
+          { $set: { passwordHash, updatedAt: now } }
+        );
+        console.log(`  🔑 Generated fresh temporary credentials for ${normalizedEmail}`);
+      }
     } else {
-      tempPassword = `DAAR@${crypto.randomInt(100000, 999999)}`;
       const salt = await bcrypt.genSalt(12);
       const passwordHash = await bcrypt.hash(tempPassword, salt);
 
