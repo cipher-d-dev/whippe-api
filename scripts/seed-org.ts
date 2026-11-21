@@ -191,6 +191,12 @@ const CONFIRMED_SUPERVISORS: SupervisorDef[] = [
     email: 'adejumok84@gmail.com',
     departmentName: 'FAAJI FM',
   },
+  {
+    firstName: 'Seidu',
+    lastName: 'Shaibu',
+    email: 'said2sas@gmail.com',
+    departmentName: 'MARKETING & SALES DEPARTMENT/MONITORING UNIT',
+  },
 ];
 
 async function run() {
