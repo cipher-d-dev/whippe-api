@@ -28,6 +28,7 @@
 14. [Notifications — `/notifications`](#14-notifications)
 15. [Timeline & Summary — `/interns/:id/timeline`, `/interns/:id/summary`](#15-timeline--summary)
 16. [Admin History — `/admin/history`](#16-admin-history)
+17. [Admin Dashboard — `/admin/dashboard`](#17-admin-dashboard)
 
 ---
 
@@ -1041,6 +1042,36 @@ Intern submits a check-in or check-out. Server validates location against the DA
 
 ---
 
+### GET /attendance/geofence
+
+The office zone that check-ins are judged against, so the intern app can show
+"inside / outside the zone" before the intern submits. Same values the server
+uses in `POST /attendance/check-in`; the server still checks every submission.
+
+**Auth:** Bearer token  
+**Roles:** `HR`, `SUPERVISOR`, `INTERN`
+
+**Response `200`:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "geofence": {
+      "latitude": 6.4281,
+      "longitude": 3.4219,
+      "radiusMeters": 500,
+      "poorAccuracyThresholdMeters": 50
+    }
+  }
+}
+```
+
+A check-in outside `radiusMeters` is `REJECTED`; inside it but with
+`locationAccuracy` above `poorAccuracyThresholdMeters` it is `FLAGGED`.
+
+---
+
 ### GET /attendance
 
 **Auth:** Bearer token  
@@ -1925,6 +1956,80 @@ Returns a paginated audit log of all important HR actions.
   "totalPages": 1
 }
 ```
+
+---
+
+## 17. Admin Dashboard
+
+> HR only.
+
+---
+
+### GET /admin/dashboard
+
+Every figure on the HR dashboard in one call.
+
+**Auth:** Bearer token  
+**Roles:** `HR`
+
+Attendance figures use check-ins (`CHECK_IN`) only. An intern counts as present
+when their check-in is `ACCEPTED`, `FLAGGED` or `CORRECTED`, once per day.
+`week` covers Monday–Friday of the current week; days still to come are `null`.
+`averageArrival` is Lagos time (UTC+1).
+
+**Response `200`:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "generatedAt": "2026-11-19T10:30:00.000Z",
+    "interns": {
+      "total": 156,
+      "byStatus": { "SCREENED": 0, "ONBOARDING": 14, "ACTIVE": 142, "COMPLETED": 38 },
+      "activeByType": { "INTERNSHIP": 96, "NYSC_IT": 46 },
+      "activeBySubsidiary": [
+        { "subsidiary": "AIT", "count": 64 },
+        { "subsidiary": "Raypower", "count": 31 },
+        { "subsidiary": "Unassigned", "count": 2 }
+      ]
+    },
+    "today": {
+      "date": "2026-11-19",
+      "checkedIn": 118,
+      "accepted": 112,
+      "flagged": 3,
+      "rejected": 3,
+      "corrected": 0,
+      "notCheckedIn": 24,
+      "averageArrival": "08:47"
+    },
+    "week": [
+      { "date": "2026-11-16", "weekday": "Mon", "checkedIn": 131 },
+      { "date": "2026-11-17", "weekday": "Tue", "checkedIn": 127 },
+      { "date": "2026-11-18", "weekday": "Wed", "checkedIn": 134 },
+      { "date": "2026-11-19", "weekday": "Thu", "checkedIn": 118 },
+      { "date": "2026-11-20", "weekday": "Fri", "checkedIn": null }
+    ],
+    "pending": {
+      "verifications": 6,
+      "documentsToVerify": 4,
+      "tasksToReview": 23,
+      "reportsToReview": 12,
+      "draftEvaluations": 2
+    }
+  }
+}
+```
+
+| Field | Meaning |
+|---|---|
+| `interns.activeBySubsidiary` | Active interns by their department's subsidiary, largest first. No department → `"Unassigned"`. |
+| `today.notCheckedIn` | Active interns with no check-in attempt today (rejected attempts are not counted here). |
+| `pending.documentsToVerify` | Documents `DIGITAL_RECEIVED` or `PHYSICAL_RECEIVED`, waiting for HR to verify. |
+| `pending.tasksToReview` | Tasks in `SUBMITTED`. |
+| `pending.reportsToReview` | Reports in `SUBMITTED`. |
+| `pending.draftEvaluations` | Evaluations still in `DRAFT`. |
 
 ---
 
