@@ -21,7 +21,29 @@ function toDateOnly(d: Date): Date {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
 }
 
-const POOR_ACCURACY_THRESHOLD_METERS = 50; // flag if accuracy > 50m
+export const POOR_ACCURACY_THRESHOLD_METERS = 50; // flag if accuracy > 50m
+
+// ─── getGeofence ──────────────────────────────────────────────────────────────
+// The office zone the check-in is judged against, so the intern app can show
+// "inside / outside the zone" before the intern submits. Uses the same values
+// checkIn() uses, so the preview can never disagree with the real decision.
+// The HQ location is not sensitive; the server still re-checks every check-in.
+
+export interface GeofenceInfo {
+  latitude: number;
+  longitude: number;
+  radiusMeters: number;
+  poorAccuracyThresholdMeters: number;
+}
+
+export function getGeofence(): GeofenceInfo {
+  return {
+    latitude: env.OFFICE_LAT,
+    longitude: env.OFFICE_LNG,
+    radiusMeters: env.OFFICE_RADIUS_METERS,
+    poorAccuracyThresholdMeters: POOR_ACCURACY_THRESHOLD_METERS,
+  };
+}
 
 // ─── checkIn ─────────────────────────────────────────────────────────────────
 
