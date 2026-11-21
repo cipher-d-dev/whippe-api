@@ -119,6 +119,54 @@ const CONFIRMED_SUPERVISORS: SupervisorDef[] = [
     email: 'dolamide99@yahoo.com',
     departmentName: 'FINANCE & ACCOUNTS',
   },
+  {
+    firstName: 'Adebayo',
+    lastName: 'Adediwura',
+    email: 'adediwuraadebayo1@yahoo.com',
+    departmentName: 'INTERNAL AUDIT',
+  },
+  {
+    firstName: 'Abass',
+    lastName: 'Ellams',
+    email: 'ellams3@yahoo.com',
+    departmentName: 'MARKETING & SALES DEPARTMENT',
+  },
+  {
+    firstName: 'Dorothy',
+    lastName: 'Eze',
+    email: 'deblossom12002@gmail.com',
+    departmentName: 'MARKETING & SALES DEPARTMENT/ADVERT TRAFFIC UNIT',
+  },
+  {
+    firstName: 'Motunde',
+    lastName: 'Adeyemi',
+    email: 'adexmotty@gmail.com',
+    departmentName: 'RAYPOWER ONLINE UNIT',
+  },
+  {
+    firstName: 'James',
+    lastName: 'Okhueleigbe',
+    email: 'Okhueleigbejamesa@gmail.com',
+    departmentName: 'RAYPOWER ONLINE UNIT',
+  },
+  {
+    firstName: 'Christiana',
+    lastName: 'Adeyemi',
+    email: 'Omorodionchristy@gmail.com',
+    departmentName: 'MARKETING & SALES DEPARTMENT/ADVERT TRAFFIC UNIT',
+  },
+  {
+    firstName: 'Teslim',
+    lastName: 'Abiodun',
+    email: 'tesyabey17@gmail.com',
+    departmentName: 'MARKETING & SALES DEPARTMENT/ADVERT TRAFFIC UNIT',
+  },
+  {
+    firstName: 'Matemi',
+    lastName: 'Abiodun',
+    email: 'ayobamidele67.moaj@gmail.com',
+    departmentName: 'MARKETING & SALES DEPARTMENT/ADVERT TRAFFIC UNIT',
+  },
 ];
 
 async function run() {
