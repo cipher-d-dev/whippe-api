@@ -312,11 +312,12 @@ async function run() {
     if (shouldSendEmails && tempPassword) {
       console.log(`  📧 Dispatching invitation email to ${normalizedEmail}...`);
       try {
+        const portalUrl = (process.env['ADMIN_URL'] || process.env['FRONTEND_URL'] || 'https://whippie-admin.vercel.app').replace(/\/$/, '');
         const rendered = renderSupervisorInviteEmail({
           firstName: sup.firstName,
           email: normalizedEmail,
           temporaryPassword: tempPassword,
-          loginUrl: `${process.env['FRONTEND_URL'] || 'https://whippie.app'}/login`,
+          loginUrl: `${portalUrl}/login`,
           departmentName: sup.departmentName,
         });
 
