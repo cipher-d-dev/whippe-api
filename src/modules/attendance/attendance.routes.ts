@@ -7,11 +7,16 @@ import {
   listAttendanceHandler,
   getAttendanceByIdHandler,
   correctAttendanceHandler,
+  getGeofenceHandler,
 } from './attendance.controller';
 
 const router = Router();
 
 router.use(authenticate);
+
+// GET /api/v1/attendance/geofence — office location + radius, for the check-in preview.
+// Registered before /:id so "geofence" is not read as an attendance ID.
+router.get('/geofence', authorize(Role.HR, Role.SUPERVISOR, Role.INTERN), getGeofenceHandler);
 
 // POST /api/v1/attendance/check-in — intern submits check-in or check-out
 router.post('/check-in', authorize(Role.INTERN), checkInHandler);

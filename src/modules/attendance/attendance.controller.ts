@@ -8,6 +8,13 @@ import {
 import { getAuthUser } from '../../middleware/auth';
 import { Role } from '../auth/auth.types';
 
+// GET /api/v1/attendance/geofence
+export function getGeofenceHandler(
+  _req: Request, res: Response,
+): void {
+  res.status(200).json({ success: true, data: { geofence: attendanceService.getGeofence() } });
+}
+
 export async function checkInHandler(
   req: Request, res: Response, next: NextFunction,
 ): Promise<void> {
