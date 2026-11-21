@@ -179,6 +179,18 @@ const CONFIRMED_SUPERVISORS: SupervisorDef[] = [
     email: 'ellamswahid@gmail.com',
     departmentName: 'DVSL/PRODUCTION',
   },
+  {
+    firstName: 'Abiola',
+    lastName: 'Aberuagba',
+    email: 'aberuagbabiola1@gmail.com',
+    departmentName: 'NEWS DEPARTMENT',
+  },
+  {
+    firstName: 'Kayode',
+    lastName: 'Adejumo',
+    email: 'adejumok84@gmail.com',
+    departmentName: 'FAAJI FM',
+  },
 ];
 
 async function run() {
