@@ -47,7 +47,7 @@ const DEPARTMENTS: DeptDef[] = [
   { name: 'MARKETING & SALES DEPARTMENT/MONITORING UNIT', subsidiary: 'DAAR Corporate' },
   { name: 'FINANCE & ACCOUNTS', subsidiary: 'DAAR Corporate' },
   { name: 'INTERNAL AUDIT', subsidiary: 'DAAR Corporate' },
-  { name: 'DVSL/PRODUCTION', subsidiary: 'AIT' },
+  { name: 'DVSL/PRODUCTION', subsidiary: 'AIT', description: 'Production department including Camera and Editing units' },
 ];
 
 interface SupervisorDef {
@@ -166,6 +166,18 @@ const CONFIRMED_SUPERVISORS: SupervisorDef[] = [
     lastName: 'Abiodun',
     email: 'ayobamidele67.moaj@gmail.com',
     departmentName: 'MARKETING & SALES DEPARTMENT/ADVERT TRAFFIC UNIT',
+  },
+  {
+    firstName: 'Christopher',
+    lastName: 'Ebuetse',
+    email: 'christophereal1@yahoo.com',
+    departmentName: 'DVSL/PRODUCTION',
+  },
+  {
+    firstName: 'Esh-Wahid',
+    lastName: 'Ellams',
+    email: 'ellamswahid@gmail.com',
+    departmentName: 'DVSL/PRODUCTION',
   },
 ];
 
