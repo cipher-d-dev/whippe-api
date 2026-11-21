@@ -137,6 +137,8 @@ export async function rejectUser(
   }
   user.status = AccountStatus.REJECTED;
   user.rejectionReason = reason;
+  user.rejectedAt = new Date();
+  user.rejectedBy = new mongoose.Types.ObjectId(hrUserId);
   await user.save();
 
   // Notify user & audit
