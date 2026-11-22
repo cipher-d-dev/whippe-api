@@ -41,6 +41,18 @@ export const listUsersSchema = z.object({
 
 export type ListUsersQuery = z.infer<typeof listUsersSchema>['query'];
 
+// ─── Invite HR ────────────────────────────────────────────────────────────────
+
+export const inviteHrSchema = z.object({
+  body: z.object({
+    firstName: z.string({ required_error: 'First name is required' }).trim().min(1).max(60),
+    lastName: z.string({ required_error: 'Last name is required' }).trim().min(1).max(60),
+    email: z.string({ required_error: 'Email is required' }).trim().toLowerCase().email('Enter a valid email'),
+  }),
+});
+
+export type InviteHrBody = z.infer<typeof inviteHrSchema>['body'];
+
 // ─── Avatar ───────────────────────────────────────────────────────────────────
 
 export const updateAvatarSchema = z.object({

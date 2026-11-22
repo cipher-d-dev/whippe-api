@@ -5,6 +5,8 @@ import { Role } from '../auth/auth.types';
 import {
   createRequirementHandler,
   listRequirementsHandler,
+  updateRequirementHandler,
+  deleteRequirementHandler,
   createDocumentHandler,
   listDocumentsHandler,
   getDocumentByIdHandler,
@@ -22,6 +24,8 @@ router.use(authenticate);
 // ─── Document requirements ────────────────────────────────────────────────────
 router.post('/requirements', authorize(Role.HR), createRequirementHandler);
 router.get('/requirements', authorize(Role.HR, Role.SUPERVISOR, Role.INTERN), listRequirementsHandler);
+router.patch('/requirements/:id', authorize(Role.HR), updateRequirementHandler);
+router.delete('/requirements/:id', authorize(Role.HR), deleteRequirementHandler);
 
 // ─── Document records ─────────────────────────────────────────────────────────
 router.post('/', authorize(Role.HR), createDocumentHandler);

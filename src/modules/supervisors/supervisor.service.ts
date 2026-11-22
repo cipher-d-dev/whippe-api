@@ -14,7 +14,7 @@ import {
 } from './supervisor.schema';
 import { PaginatedResponse } from '../users/user.types';
 import { IInternDocument } from '../interns/intern.model';
-import { env } from '../../config/env';
+import { staffPortalUrl } from '../../lib/urls';
 import { sendEmail } from '../../lib/email';
 import { renderSupervisorInviteEmail } from '../../lib/email-templates';
 
@@ -109,7 +109,7 @@ export async function createSupervisor(
       firstName: input.firstName,
       email: user.email,
       temporaryPassword: rawPassword,
-      loginUrl: `${env.FRONTEND_URL}/login`,
+      loginUrl: `${staffPortalUrl()}/login`,
       departmentName,
     });
 

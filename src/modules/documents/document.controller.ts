@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import * as documentService from './document.service';
 import {
   createRequirementSchema,
+  updateRequirementSchema,
   createDocumentSchema,
   markPhysicalSchema,
   registerUploadSchema,
@@ -16,6 +17,21 @@ export async function createRequirementHandler(req: Request, res: Response, next
     const actor = getAuthUser(req);
     const requirement = await documentService.createRequirement(body, actor.id);
     res.status(201).json({ success: true, message: 'Document requirement created.', data: { requirement } });
+  } catch (err) { next(err); }
+}
+
+export async function updateRequirementHandler(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { params, body } = updateRequirementSchema.parse({ params: req.params, body: req.body });
+    const requirement = await documentService.updateRequirement(params.id, body);
+    res.status(200).json({ success: true, message: 'Document requirement updated.', data: { requirement } });
+  } catch (err) { next(err); }
+}
+
+export async function deleteRequirementHandler(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    await documentService.deleteRequirement(req.params['id'] ?? '');
+    res.status(200).json({ success: true, message: 'Document requirement removed.' });
   } catch (err) { next(err); }
 }
 

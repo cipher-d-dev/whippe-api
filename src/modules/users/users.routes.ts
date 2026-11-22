@@ -12,6 +12,7 @@ import {
   getAvatarUploadInfoHandler,
   updateAvatarHandler,
   deleteUserHandler,
+  inviteHrHandler,
 } from './users.controller';
 
 const router = Router();
@@ -36,6 +37,9 @@ router.get(
   authorize(Role.HR),
   getUnlinkedInternsHandler,
 );
+
+// POST /api/v1/users/hr — add another HR administrator
+router.post('/hr', authorize(Role.HR), inviteHrHandler);
 
 // GET /api/v1/users
 router.get('/', authorize(Role.HR), listUsersHandler);

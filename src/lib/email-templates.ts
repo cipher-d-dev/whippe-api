@@ -498,3 +498,52 @@ export function renderSupervisorInviteEmail(input: SupervisorInviteEmailInput): 
 
   return { subject, html, text };
 }
+
+// ─── HR account invite ────────────────────────────────────────────────────────
+
+export interface HrInviteEmailInput {
+  firstName: string;
+  email: string;
+  temporaryPassword: string;
+  loginUrl: string;
+  invitedBy: string;
+}
+
+export function renderHrInviteEmail(input: HrInviteEmailInput): RenderedEmail {
+  const subject = `You've been added to the HR team on ${BRAND}`;
+
+  const html = wrap({
+    preheader: 'An HR account has been created for you on the DAAR Communications internship portal.',
+    badgeText: 'HR Account Created',
+    badgeBg: '#EEF2FF',
+    badgeColor: COLOR_PRIMARY,
+    headingHtml: heading(`Welcome to the HR team`),
+    bodyHtml: `
+      ${bodyText(`Hi ${esc(input.firstName)}, ${esc(input.invitedBy)} has added you as an HR administrator on ${BRAND}.`)}
+      ${infoCard([
+        `Email: <strong>${esc(input.email)}</strong>`,
+        `Temporary Password: <strong style="font-family: monospace; font-size: 15px; letter-spacing: 0.05em;">${esc(input.temporaryPassword)}</strong>`,
+      ], '#C7D2FE', '#EEF2FF')}
+      ${bodyText(`You can approve new sign-ups, set up interns, manage supervisors and departments, and generate letters.`)}
+      ${bodyText(`<em>Please sign in and change your password under Settings.</em>`)}
+    `,
+    ctaLabel: 'Sign in to Staff Portal',
+    ctaUrl: input.loginUrl,
+    footerNote: `You received this email because an HR account was created for you at ${COMPANY_NAME}.`,
+  });
+
+  const text = [
+    `Hi ${input.firstName},`,
+    '',
+    `${input.invitedBy} has added you as an HR administrator on ${BRAND}.`,
+    `Email: ${input.email}`,
+    `Temporary Password: ${input.temporaryPassword}`,
+    '',
+    `Sign in here: ${input.loginUrl}`,
+    'Please change your password under Settings after signing in.',
+    '',
+    `© ${new Date().getFullYear()} ${BRAND} · ${COMPANY_NAME}`,
+  ].join('\n');
+
+  return { subject, html, text };
+}

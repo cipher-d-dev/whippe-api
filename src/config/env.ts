@@ -17,6 +17,11 @@ const envSchema = z.object({
   // ── Frontend URL (OAuth redirects) ────────────────────────────────────────
   FRONTEND_URL: z.string().url().default('http://localhost:3000'),
 
+  // ── Staff portal URL (whippie-web) ────────────────────────────────────────
+  // Links in emails to HR and supervisors (invites, password resets) go here.
+  // FRONTEND_URL is the intern app. Falls back to FRONTEND_URL when unset.
+  ADMIN_URL: z.string().url().optional(),
+
   // ── Office geofence — DAAR Communications HQ ─────────────────────────────
   OFFICE_LAT: z.coerce.number({ required_error: 'OFFICE_LAT is required' }),
   OFFICE_LNG: z.coerce.number({ required_error: 'OFFICE_LNG is required' }),
