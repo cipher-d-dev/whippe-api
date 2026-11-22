@@ -2098,3 +2098,59 @@ settings.
 `ADMIN_URL` (new, optional) is the staff portal. Supervisor invites, HR invites
 and password resets for HR and supervisors link there. Everything for interns
 still uses `FRONTEND_URL`. When `ADMIN_URL` is unset, `FRONTEND_URL` is used.
+
+---
+
+## 19. November 2026 changes
+
+### Stipend report — GET /admin/stipends
+
+**Roles:** `HR`. Query: `from`, `to` (`YYYY-MM-DD`). With neither, the current
+calendar month (Lagos time); with `from` only, that whole month. Up to three months.
+
+A day worked is a day with an `ACCEPTED` or `CORRECTED` check-in. `FLAGGED` days are
+counted separately (they count once HR corrects them); `REJECTED` never count.
+Expected days come from settings (`stipend.INTERNSHIP.days`, `stipend.NYSC_IT.days`):
+used as is for a whole calendar month on the programme, otherwise
+`days × weekdays ÷ 20`. Suggested amount = full stipend × worked ÷ expected,
+capped at the full stipend. Nothing is paid by the API.
+
+```json
+{ "report": {
+  "period": { "from": "2026-11-01", "to": "2026-11-30", "calendarMonth": true },
+  "rules": { "INTERNSHIP": { "days": 20, "amount": 40000 }, "NYSC_IT": { "days": 16, "amount": 50000 } },
+  "rows": [{ "internId": "…", "firstName": "…", "lastName": "…", "internshipType": "NYSC_IT",
+             "department": "…", "supervisor": "…", "activeFrom": "2026-11-01", "activeTo": "2026-11-30",
+             "expectedDays": 16, "daysWorked": 14, "flaggedDays": 1, "rejectedDays": 0,
+             "fullAmount": 50000, "suggestedAmount": 43750 }],
+  "totals": { "suggestedAmount": 43750, "people": 1 } } }
+```
+
+### Settings
+
+`GET/PATCH /settings` now also has `stipend: { INTERNSHIP: { days, amount }, NYSC_IT: { days, amount } }`
+(defaults 20 days / ₦40,000 and 16 days / ₦50,000).
+
+### Interns
+
+- `course` is optional for corps members (`NYSC_IT`); still required, with `institution`, for `INTERNSHIP`.
+- Interns may now update their own `middleName`, `gender`, `phone`, `address`, `institution`,
+  `institutionLocation`, `course`, `level`, `stateCode`, `callUpNumber`.
+- `POST /interns` now saves `middleName`, `gender`, `institutionLocation`, `stateCode` and `callUpNumber` (they were dropped before).
+- The exit checklist no longer checks documents.
+
+### Supervisors
+
+`departments` (array of department IDs) on create/update and in responses. `department`
+stays as the first of them. `GET /supervisors?department=` matches either.
+
+### Sign-in cookie
+
+In production the refresh cookie is `SameSite=None; Secure` so the apps on vercel.app can
+refresh sessions with the API on onrender.com. Requires `NODE_ENV=production`.
+
+### One-time data updates (`src/migrations`)
+
+Run at startup, once each, recorded in the `migrations` collection. Only when
+`NODE_ENV=production` (or `RUN_MIGRATIONS=true`) and `ADMIN_URL` is set.
+`2026-11-roster` applies HR's department and supervisor roster and creates Cindy Uduma's logins.

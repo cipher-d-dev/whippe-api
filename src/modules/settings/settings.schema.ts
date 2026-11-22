@@ -1,6 +1,13 @@
 import { z } from 'zod';
 
 const label = z.string().trim().min(1, 'Label cannot be empty').max(40);
+const stipendRule = z
+  .object({
+    days: z.number().int().min(1, 'At least 1 day').max(31),
+    amount: z.number().int().min(0).max(10_000_000),
+  })
+  .partial()
+  .strict();
 
 export const updateSettingsSchema = z.object({
   body: z
@@ -14,6 +21,10 @@ export const updateSettingsSchema = z.object({
         .min(1, 'Keep at least one station')
         .max(20)
         .refine((a) => new Set(a.map((s) => s.toLowerCase())).size === a.length, 'Station names must be different')
+        .optional(),
+      stipend: z
+        .object({ INTERNSHIP: stipendRule.optional(), NYSC_IT: stipendRule.optional() })
+        .strict()
         .optional(),
     })
     .strict(),

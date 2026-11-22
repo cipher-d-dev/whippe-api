@@ -11,6 +11,11 @@ export interface ISettings {
     NYSC_IT?: string;
   };
   stations: string[];
+  /** Monthly stipend per internship type: expected working days and full amount (naira). */
+  stipend?: {
+    INTERNSHIP?: { days?: number; amount?: number };
+    NYSC_IT?: { days?: number; amount?: number };
+  };
   updatedBy?: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
@@ -26,6 +31,10 @@ const settingsSchema = new Schema<ISettingsDocument>(
       NYSC_IT: { type: String, trim: true },
     },
     stations: { type: [String], default: undefined },
+    stipend: {
+      INTERNSHIP: { days: Number, amount: Number },
+      NYSC_IT: { days: Number, amount: Number },
+    },
     updatedBy: { type: Schema.Types.ObjectId, ref: 'User' },
   },
   { timestamps: true },
