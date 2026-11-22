@@ -68,6 +68,7 @@ import notificationsRouter from './modules/notifications/notifications.routes';
 import timelineRouter from './modules/timeline/timeline.routes';
 import exitRouter from './modules/interns/exit.routes';
 import dashboardRouter from './modules/dashboard/dashboard.routes';
+import settingsRouter from './modules/settings/settings.routes';
 
 app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/users', usersRouter);
@@ -83,6 +84,7 @@ app.use('/api/v1/evaluations', evaluationsRouter);
 app.use('/api/v1/documents', documentsRouter);
 app.use('/api/v1/notifications', notificationsRouter);
 app.use('/api/v1/admin/dashboard', dashboardRouter);
+app.use('/api/v1/settings', settingsRouter);
 app.use('/api/v1', timelineRouter);
 
 // ─── 404 ─────────────────────────────────────────────────────────────────────

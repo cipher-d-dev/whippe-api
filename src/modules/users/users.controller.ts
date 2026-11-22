@@ -5,6 +5,7 @@ import {
   rejectUserSchema,
   listUsersSchema,
   updateAvatarSchema,
+  inviteHrSchema,
 } from './users.schema';
 import { generateUploadInfo } from '../../lib/appwrite';
 import { getAuthUser } from '../../middleware/auth';
@@ -178,7 +179,7 @@ export async function deleteUserHandler(
     const { userId } = req.params;
     const actor = getAuthUser(req);
     // HR only enforced by route
-    await usersService.deleteUser(userId);
+    await usersService.deleteUser(userId, actor.id);
     res.status(200).json({ success: true, message: 'User deleted.' });
   } catch (err) {
     next(err);
@@ -200,6 +201,24 @@ export async function updateAvatarHandler(
       message: 'Avatar updated successfully.',
       data: { user: updated },
     });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// ─── POST /users/hr ───────────────────────────────────────────────────────────
+// HR only — add another HR administrator (emails them a temporary password).
+
+export async function inviteHrHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const { body } = inviteHrSchema.parse({ body: req.body });
+    const actor = getAuthUser(req);
+    const user = await usersService.inviteHr(body, actor.id);
+    res.status(201).json({ success: true, message: 'HR account created and invitation sent.', data: { user } });
   } catch (err) {
     next(err);
   }

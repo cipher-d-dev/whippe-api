@@ -13,6 +13,19 @@ export const createRequirementSchema = z.object({
 });
 export type CreateRequirementInput = z.infer<typeof createRequirementSchema>['body'];
 
+export const updateRequirementSchema = z.object({
+  params: z.object({ id: z.string().min(1) }),
+  body: z
+    .object({
+      label:       z.string().trim().min(1).max(200).optional(),
+      description: z.string().trim().max(500).optional(),
+      isRequired:  z.boolean().optional(),
+    })
+    .strict()
+    .refine((b) => Object.keys(b).length > 0, 'Nothing to update.'),
+});
+export type UpdateRequirementInput = z.infer<typeof updateRequirementSchema>['body'];
+
 // ─── Create document record ───────────────────────────────────────────────────
 
 export const createDocumentSchema = z.object({

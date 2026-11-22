@@ -2034,3 +2034,67 @@ when their check-in is `ACCEPTED`, `FLAGGED` or `CORRECTED`, once per day.
 ---
 
 *End of API Contract — Whippe API v1.0*
+
+---
+
+## 18. Configuration (HR)
+
+### POST /users/hr
+
+Add another HR administrator. Creates an active HR account with a temporary
+password and emails it, with a link to the staff portal (`ADMIN_URL`).
+
+**Auth:** Bearer token · **Roles:** `HR`
+
+```json
+{ "firstName": "Cindy", "lastName": "Uduma", "email": "name@example.com" }
+```
+
+**Response `201`:** `{ "success": true, "data": { "user": { ... } } }`
+
+**Errors:** `409` the email already has an account (one login has one role, so
+use a different email for a second role).
+
+`DELETE /users/:userId` now refuses to delete your own account (`403`) or the
+last active HR account (`409`).
+
+### PATCH /documents/requirements/:id
+
+Rename a checklist item or change whether it is required.
+
+**Roles:** `HR` · **Body (any of):** `label`, `description`, `isRequired`
+
+### DELETE /documents/requirements/:id
+
+**Roles:** `HR`. Refused with `409` while any intern has a document filed
+under the item; mark it optional instead.
+
+### GET /settings
+
+Public. Wording HR can change: labels for the two internship types and the
+list of stations (subsidiaries) offered for departments.
+
+```json
+{
+  "success": true,
+  "data": {
+    "settings": {
+      "labels": { "INTERNSHIP": "Intern", "NYSC_IT": "Corps member" },
+      "stations": ["AIT", "Raypower", "Faaji", "DAAR Corporate"],
+      "updatedAt": null
+    }
+  }
+}
+```
+
+### PATCH /settings
+
+**Roles:** `HR`. Body may contain `labels` (`INTERNSHIP`, `NYSC_IT`, 1–40
+characters each) and/or `stations` (1–20 distinct names). Returns the full
+settings.
+
+### Email links
+
+`ADMIN_URL` (new, optional) is the staff portal. Supervisor invites, HR invites
+and password resets for HR and supervisors link there. Everything for interns
+still uses `FRONTEND_URL`. When `ADMIN_URL` is unset, `FRONTEND_URL` is used.

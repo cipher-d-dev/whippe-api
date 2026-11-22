@@ -6,6 +6,7 @@ import { Role } from '../auth/auth.types';
 import { createError } from '../../middleware/error-handler';
 import {
   CreateRequirementInput,
+  UpdateRequirementInput,
   CreateDocumentInput,
   RegisterUploadInput,
   ReviewDocumentInput,
@@ -28,6 +29,30 @@ export async function createRequirement(
     ...input,
     createdBy: new mongoose.Types.ObjectId(hrUserId),
   });
+}
+
+export async function updateRequirement(
+  id: string,
+  input: UpdateRequirementInput,
+): Promise<IDocumentRequirementDocument> {
+  if (!mongoose.isValidObjectId(id)) throw createError('Invalid requirement ID.', 400);
+  const requirement = await DocumentRequirement.findByIdAndUpdate(id, { $set: input }, { new: true, runValidators: true });
+  if (!requirement) throw createError('Document requirement not found.', 404);
+  return requirement;
+}
+
+/** Only removable while no intern has a document filed against it. */
+export async function deleteRequirement(id: string): Promise<void> {
+  if (!mongoose.isValidObjectId(id)) throw createError('Invalid requirement ID.', 400);
+  const inUse = await DocumentRecord.countDocuments({ requirement: id });
+  if (inUse > 0) {
+    throw createError(
+      `${inUse} intern document${inUse === 1 ? ' is' : 's are'} filed under this item. Mark it optional instead of removing it.`,
+      409,
+    );
+  }
+  const deleted = await DocumentRequirement.findByIdAndDelete(id);
+  if (!deleted) throw createError('Document requirement not found.', 404);
 }
 
 export async function listRequirements(): Promise<IDocumentRequirementDocument[]> {

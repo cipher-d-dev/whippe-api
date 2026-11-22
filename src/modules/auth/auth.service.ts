@@ -1,3 +1,4 @@
+import { appUrlFor } from '../../lib/urls';
 import bcrypt from 'bcryptjs';
 import { User } from '../users/user.model';
 import { AccountStatus, AuthMethod, Role } from './auth.types';
@@ -207,7 +208,7 @@ export async function requestPasswordReset(email: string): Promise<void> {
   user.passwordResetExpiresAt = expiresAt;
   await user.save();
 
-  const resetUrl = `${env.FRONTEND_URL}/reset-password?token=${token}`;
+  const resetUrl = `${appUrlFor(user.role)}/reset-password?token=${token}`;
   const rendered = renderPasswordResetEmail({
     firstName: user.firstName,
     resetUrl,
