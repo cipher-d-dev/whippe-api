@@ -2,6 +2,7 @@ import { env } from './config/env';
 import { connectDatabase, disconnectDatabase } from './config/database';
 import { startCleanupJob, stopCleanupJob } from './lib/cleanup';
 import { ensureDefaultHR } from './config/seed';
+import { runMigrations } from './migrations';
 import app from './app';
 
 // ─── Startup env-var audit ────────────────────────────────────────────────────
@@ -14,6 +15,7 @@ function auditEnv(): void {
     { name: 'MONGODB_URI',         set: !!process.env['MONGODB_URI'],         impact: 'Database connection — app will not start' },
     { name: 'JWT_SECRET',          set: !!process.env['JWT_SECRET'],           impact: 'All auth tokens — app will not start' },
     { name: 'FRONTEND_URL',        set: !!process.env['FRONTEND_URL'],         impact: 'OAuth redirects, email links — defaults to localhost:3000' },
+    { name: 'ADMIN_URL',           set: !!process.env['ADMIN_URL'],            impact: 'Staff emails link to FRONTEND_URL instead of the staff portal; one-time updates wait' },
 
     // ── Google OAuth ──────────────────────────────────────────────────────────
     { name: 'GOOGLE_CLIENT_ID',     set: !!process.env['GOOGLE_CLIENT_ID'],    impact: 'Google sign-in is completely broken' },
@@ -63,6 +65,9 @@ async function start(): Promise<void> {
   await ensureDefaultHR().catch((err) => {
     console.warn('⚠️  Could not seed initial HR account:', err);
   });
+
+  // One-time data updates (each runs once, see src/migrations)
+  await runMigrations();
 
   // Start background jobs after DB is connected
   startCleanupJob();

@@ -9,6 +9,7 @@ export const createSupervisorSchema = z.object({
     lastName:   z.string({ required_error: 'Last name is required' }).trim().min(1).max(100),
     phone:      z.string().trim().max(30).optional(),
     department: z.string().optional(), // ObjectId string — validated in service
+    departments: z.array(z.string()).max(10).optional(), // several departments; first is the main one
   }).refine((data) => data.userId || data.email, {
     message: 'Either a staff account (userId) or an email address must be provided',
     path: ['email'],
@@ -25,6 +26,7 @@ export const updateSupervisorSchema = z.object({
       lastName:   z.string().trim().min(1).max(100).optional(),
       phone:      z.string().trim().max(30).optional(),
       department: z.string().optional(),
+      departments: z.array(z.string()).max(10).optional(),
       isActive:   z.boolean().optional(),
     })
     .strict(),

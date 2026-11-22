@@ -1,11 +1,9 @@
 import mongoose from 'mongoose';
 import { Intern } from './intern.model';
 import { Task } from '../tasks/task.model';
-import { DocumentRecord } from '../documents/document.model';
 import { Evaluation } from '../evaluations/evaluation.model';
 import { InternshipStatus } from './intern.types';
 import { TaskStatus } from '../tasks/task.types';
-import { DocumentStatus } from '../documents/document.types';
 import { EvaluationStatus } from '../evaluations/evaluation.types';
 import { createError } from '../../middleware/error-handler';
 import { logAction } from '../timeline/audit-log.service';
@@ -43,9 +41,10 @@ export async function getExitChecklist(internId: string): Promise<ExitChecklist>
   const internName = `${intern.firstName} ${intern.lastName}`;
 
   // Fetch all relevant records in parallel
-  const [tasks, documents, evaluations] = await Promise.all([
+  // Physical papers (guarantor's form, ID, school letter…) are handled on paper,
+  // so documents are no longer part of the exit checklist.
+  const [tasks, evaluations] = await Promise.all([
     Task.find({ intern: internId }).lean(),
-    DocumentRecord.find({ intern: internId }).lean(),
     Evaluation.find({ intern: internId, status: EvaluationStatus.SUBMITTED }).lean(),
   ]);
 
@@ -69,21 +68,7 @@ export async function getExitChecklist(internId: string): Promise<ExitChecklist>
         : undefined,
   });
 
-  // ── 2. No required documents still pending ────────────────────────────────
-  const pendingRequiredDocs = documents.filter(
-    (d) => d.status === DocumentStatus.PENDING,
-  );
-
-  items.push({
-    label: 'No required documents pending submission',
-    passed: pendingRequiredDocs.length === 0,
-    detail:
-      pendingRequiredDocs.length > 0
-        ? `${pendingRequiredDocs.length} document(s) not yet submitted`
-        : undefined,
-  });
-
-  // ── 3. At least one evaluation submitted ─────────────────────────────────
+  // ── 2. At least one evaluation submitted ─────────────────────────────────
   items.push({
     label: 'At least one evaluation submitted',
     passed: evaluations.length > 0,

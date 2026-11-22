@@ -14,6 +14,11 @@ export interface ISupervisor {
   // may oversee interns across departments)
   department?: mongoose.Types.ObjectId;
 
+  // Every department this supervisor covers (some cover two or three, e.g.
+  // Engineering Services and the ICT Unit). `department` is kept as the first
+  // of these so older screens and queries keep working.
+  departments: mongoose.Types.ObjectId[];
+
   isActive: boolean;
   createdBy: mongoose.Types.ObjectId;
   createdAt: Date;
@@ -42,6 +47,8 @@ const supervisorSchema = new Schema<ISupervisorDocument, ISupervisorModel>(
       type: Schema.Types.ObjectId,
       ref: 'Department',
     },
+
+    departments: [{ type: Schema.Types.ObjectId, ref: 'Department' }],
 
     isActive: { type: Boolean, default: true },
 

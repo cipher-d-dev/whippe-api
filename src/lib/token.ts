@@ -74,11 +74,21 @@ export function isRefreshTokenHashValid(
 
 export const REFRESH_TOKEN_COOKIE = 'whippe_refresh_token';
 
+// The staff portal and intern app (vercel.app) call the API (onrender.com) from a
+// different site. 'strict' and 'lax' cookies are never sent on those requests, so
+// silent refresh failed and people were signed out on reload. In production the
+// cookie is therefore SameSite=None (which browsers only accept with Secure).
+// It stays httpOnly and scoped to /api/v1/auth, and CORS only lets the listed
+// origins read the refresh response.
+function refreshCookieSameSite(): 'none' | 'lax' {
+  return env.NODE_ENV === 'production' ? 'none' : 'lax';
+}
+
 export function refreshTokenCookieOptions() {
   return {
     httpOnly: true,
     secure: env.NODE_ENV === 'production',
-    sameSite: 'strict' as const,
+    sameSite: refreshCookieSameSite(),
     maxAge: REFRESH_TOKEN_TTL_MS,
     path: '/api/v1/auth',  // scoped — browser only sends this cookie to /auth routes
   };
@@ -88,7 +98,7 @@ export function clearRefreshTokenCookieOptions() {
   return {
     httpOnly: true,
     secure: env.NODE_ENV === 'production',
-    sameSite: 'strict' as const,
+    sameSite: refreshCookieSameSite(),
     maxAge: 0,
     path: '/api/v1/auth',
   };

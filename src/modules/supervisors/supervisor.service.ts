@@ -80,16 +80,14 @@ export async function createSupervisor(
     throw createError('Either userId or email is required.', 400);
   }
 
-  if (input.department && !mongoose.isValidObjectId(input.department)) {
-    throw createError('Invalid department ID.', 400);
-  }
+  const departmentIds = resolveDepartmentIds(input) ?? [];
 
   let departmentName: string | undefined;
-  if (input.department) {
-    const dept = await Department.findById(input.department);
-    if (dept) {
-      departmentName = dept.subsidiary ? `${dept.name} (${dept.subsidiary})` : dept.name;
-    }
+  if (departmentIds.length) {
+    const depts = await Department.find({ _id: { $in: departmentIds } });
+    departmentName = depts
+      .map((d) => (d.subsidiary ? `${d.name} (${d.subsidiary})` : d.name))
+      .join(', ') || undefined;
   }
 
   const supervisor = await Supervisor.create({
@@ -97,9 +95,8 @@ export async function createSupervisor(
     firstName: input.firstName,
     lastName: input.lastName,
     phone: input.phone,
-    department: input.department
-      ? new mongoose.Types.ObjectId(input.department)
-      : undefined,
+    department: departmentIds[0],
+    departments: departmentIds,
     createdBy: new mongoose.Types.ObjectId(hrUserId),
   });
 
@@ -124,6 +121,19 @@ export async function createSupervisor(
   return supervisor;
 }
 
+// ─── Departments helper ───────────────────────────────────────────────────────
+// Accepts either `departments` (several) or the older single `department`.
+// Returns the de-duplicated list; the first one is the main department.
+function resolveDepartmentIds(input: { department?: string; departments?: string[] }): mongoose.Types.ObjectId[] | undefined {
+  const raw = input.departments ?? (input.department !== undefined ? (input.department ? [input.department] : []) : undefined);
+  if (raw === undefined) return undefined;
+  const unique = [...new Set(raw.filter(Boolean))];
+  for (const id of unique) {
+    if (!mongoose.isValidObjectId(id)) throw createError('Invalid department ID.', 400);
+  }
+  return unique.map((id) => new mongoose.Types.ObjectId(id));
+}
+
 // ─── List ─────────────────────────────────────────────────────────────────────
 
 export async function listSupervisors(
@@ -134,7 +144,8 @@ export async function listSupervisors(
 
   const filter: Record<string, unknown> = {};
   if (department && mongoose.isValidObjectId(department)) {
-    filter['department'] = new mongoose.Types.ObjectId(department);
+    const deptId = new mongoose.Types.ObjectId(department);
+    filter['$or'] = [{ department: deptId }, { departments: deptId }];
   }
   if (isActive !== undefined) filter['isActive'] = isActive;
 
@@ -144,7 +155,8 @@ export async function listSupervisors(
       .skip(skip)
       .limit(limit)
       .populate('user', 'email')
-      .populate('department', 'name subsidiary'),
+      .populate('department', 'name subsidiary')
+      .populate('departments', 'name subsidiary'),
     Supervisor.countDocuments(filter),
   ]);
 
@@ -158,7 +170,8 @@ export async function getSupervisorById(id: string): Promise<ISupervisorDocument
 
   const supervisor = await Supervisor.findById(id)
     .populate('user', 'email')
-    .populate('department', 'name subsidiary');
+    .populate('department', 'name subsidiary')
+      .populate('departments', 'name subsidiary');
 
   if (!supervisor) throw createError('Supervisor not found.', 404);
 
@@ -172,7 +185,8 @@ export async function getSupervisorByUserId(userId: string): Promise<ISupervisor
 
   const supervisor = await Supervisor.findOne({ user: userId })
     .populate('user', 'email')
-    .populate('department', 'name subsidiary');
+    .populate('department', 'name subsidiary')
+      .populate('departments', 'name subsidiary');
 
   if (!supervisor) throw createError('Supervisor profile not found for this account.', 404);
 
@@ -187,11 +201,18 @@ export async function updateSupervisor(
 ): Promise<ISupervisorDocument> {
   if (!mongoose.isValidObjectId(id)) throw createError('Invalid supervisor ID.', 400);
 
-  if (input.department && !mongoose.isValidObjectId(input.department)) {
-    throw createError('Invalid department ID.', 400);
+  const departmentIds = resolveDepartmentIds(input);
+  const { department: _d, departments: _ds, ...rest } = input;
+  const update: Record<string, unknown> = { ...rest };
+  if (departmentIds) {
+    update['departments'] = departmentIds;
+    if (departmentIds.length) update['department'] = departmentIds[0];
+    else update['$unset'] = { department: 1 };
   }
 
-  const supervisor = await Supervisor.findByIdAndUpdate(id, input, { new: true });
+  const supervisor = await Supervisor.findByIdAndUpdate(id, update, { new: true })
+    .populate('department', 'name subsidiary')
+    .populate('departments', 'name subsidiary');
   if (!supervisor) throw createError('Supervisor not found.', 404);
 
   // When a supervisor is deactivated, clear their intern assignments so HR
@@ -220,5 +241,6 @@ export async function getSupervisorInterns(
 
   return Intern.find({ supervisor: supervisorId })
     .populate('user', 'email status')
-    .populate('department', 'name subsidiary');
+    .populate('department', 'name subsidiary')
+      .populate('departments', 'name subsidiary');
 }

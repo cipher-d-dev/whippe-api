@@ -18,7 +18,7 @@ export interface IIntern {
   // ── School / programme information ────────────────────────────────────────
   institution?: string;           // University, polytechnic, etc. (optional for NYSC)
   institutionLocation?: string;   // e.g. "OJO, LAGOS STATE" or "TOLL GATE IBADAN, OYO STATE"
-  course: string;                // Course/discipline being studied
+  course?: string;               // Course of study / discipline (optional for corps members)
   level?: string;                // e.g. 100L, HND 2, NYSC batch
   stateCode?: string;            // e.g. "LA/25A/14362" (NYSC)
   callUpNumber?: string;         // e.g. "NYSC/CUO/2025/182518" (NYSC)
@@ -106,9 +106,9 @@ const internSchema = new Schema<IInternDocument, IInternModel>(
       trim: true,
     },
 
+    // Required for SIWES/IT interns (enforced in intern.schema.ts), optional for corps members.
     course: {
       type: String,
-      required: true,
       trim: true,
     },
 

@@ -29,7 +29,6 @@ import { Evaluation } from '../../src/modules/evaluations/evaluation.model';
 import { getExitChecklist, completeInternship } from '../../src/modules/interns/exit.service';
 import { InternshipStatus } from '../../src/modules/interns/intern.types';
 import { TaskStatus } from '../../src/modules/tasks/task.types';
-import { DocumentStatus } from '../../src/modules/documents/document.types';
 
 const internId = new mongoose.Types.ObjectId().toString();
 const hrUserId = new mongoose.Types.ObjectId().toString();
@@ -82,19 +81,16 @@ describe('getExitChecklist', () => {
     expect(tasksItem?.passed).toBe(false);
   });
 
-  it('returns canComplete=false when required documents are pending', async () => {
+  it('does not check documents (papers are handled offline)', async () => {
     (Intern.findById as jest.Mock).mockResolvedValue(makeMockIntern());
     (Task.find as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue([{ status: TaskStatus.COMPLETED }]) });
-    (DocumentRecord.find as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue([
-      { status: DocumentStatus.PENDING },
-    ]) });
     (Evaluation.find as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue([{ _id: new mongoose.Types.ObjectId() }]) });
 
     const result = await getExitChecklist(internId);
 
-    expect(result.canComplete).toBe(false);
-    const docsItem = result.items.find((i) => i.label.includes('documents'));
-    expect(docsItem?.passed).toBe(false);
+    expect(result.canComplete).toBe(true);
+    expect(result.items.some((i) => i.label.toLowerCase().includes('document'))).toBe(false);
+    expect(DocumentRecord.find).not.toHaveBeenCalled();
   });
 
   it('returns canComplete=false when no evaluations submitted', async () => {

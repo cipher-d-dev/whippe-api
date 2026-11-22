@@ -34,11 +34,7 @@ export const createInternSchema = z.object({
 
     institutionLocation: z.string().trim().max(200).optional(),
 
-    course: z
-      .string({ required_error: 'Course is required' })
-      .trim()
-      .min(1, 'Course is required')
-      .max(200),
+    course: z.string().trim().max(200).optional(),
 
     level: z.string().trim().max(50).optional(),
 
@@ -54,19 +50,17 @@ export const createInternSchema = z.object({
 
     startDate: z.coerce.date().optional(),
     endDate: z.coerce.date().optional(),
-  }).refine(
-    (data) => {
-      // If internshipType is INTERNSHIP, institution is required.
-      if (data.internshipType === InternshipType.INTERNSHIP) {
-        return !!data.institution && data.institution.trim().length > 0;
-      }
-      return true;
-    },
-    {
-      message: 'Institution is required for standard interns',
-      path: ['institution'],
-    },
-  ),
+  })
+    // Corps members are graduates: institution, level and course are optional for them.
+    // SIWES/IT interns still need institution and course of study.
+    .refine(
+      (data) => data.internshipType !== InternshipType.INTERNSHIP || !!data.institution?.trim(),
+      { message: 'Institution is required for students on industrial training', path: ['institution'] },
+    )
+    .refine(
+      (data) => data.internshipType !== InternshipType.INTERNSHIP || !!data.course?.trim(),
+      { message: 'Course of study/discipline is required for students on industrial training', path: ['course'] },
+    ),
 });
 
 export type CreateInternInput = z.infer<typeof createInternSchema>['body'];
@@ -105,9 +99,19 @@ export type UpdateInternInput = z.infer<typeof updateInternSchema>['body'];
 // ─── Intern-permitted update fields ──────────────────────────────────────────
 // These are the only fields an intern may update on their own record.
 
+// Interns and corps members fill in their own personal, school and NYSC details.
+// Name, type, status, dates, department and supervisor stay with HR.
 export const INTERN_PERMITTED_UPDATE_FIELDS: (keyof UpdateInternInput)[] = [
+  'middleName',
+  'gender',
   'phone',
   'address',
+  'institution',
+  'institutionLocation',
+  'course',
+  'level',
+  'stateCode',
+  'callUpNumber',
 ];
 
 // ─── List query ───────────────────────────────────────────────────────────────
