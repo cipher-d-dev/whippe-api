@@ -4,6 +4,7 @@ import { Intern } from '../interns/intern.model';
 import { AttendanceStatus, CheckType } from './attendance.types';
 import { checkGeofence } from '../../lib/geofence';
 import { createError } from '../../middleware/error-handler';
+import { evaluateCheckInFace, CheckInFaceResult } from '../face/face.service';
 import { env } from '../../config/env';
 import {
   CheckInInput,
@@ -94,6 +95,24 @@ export async function checkIn(
     flagReasons.push('POOR_LOCATION_ACCURACY');
   }
 
+  // ── Face check and shared phone (check-in only) ───────────────────────────
+  let face: CheckInFaceResult = { flagReasons: [] };
+  let otherOnSamePhone: IAttendanceDocument[] = [];
+  if (input.checkType === CheckType.CHECK_IN) {
+    face = await evaluateCheckInFace(intern._id as mongoose.Types.ObjectId, input.face);
+    flagReasons.push(...face.flagReasons);
+
+    if (input.deviceId) {
+      otherOnSamePhone = await Attendance.find({
+        date: today,
+        checkType: CheckType.CHECK_IN,
+        deviceId: input.deviceId,
+        intern: { $ne: intern._id },
+      });
+      if (otherOnSamePhone.length) flagReasons.push('SHARED_DEVICE');
+    }
+  }
+
   let status: AttendanceStatus;
 
   if (!withinGeofence) {
@@ -120,7 +139,20 @@ export async function checkIn(
     ipAddress,
     userAgent,
     flagReasons: flagReasons.length > 0 ? flagReasons : undefined,
+    selfieKey: face.selfieKey,
+    faceScore: face.faceScore,
+    livenessPassed: face.livenessPassed,
+    deviceId: input.deviceId,
   });
+
+  // The earlier check-in from the same phone is just as suspect.
+  for (const other of otherOnSamePhone) {
+    const reasons = new Set(other.flagReasons ?? []);
+    reasons.add('SHARED_DEVICE');
+    other.flagReasons = [...reasons];
+    if (other.status === AttendanceStatus.ACCEPTED) other.status = AttendanceStatus.FLAGGED;
+    await other.save();
+  }
 
   if (status === AttendanceStatus.FLAGGED) {
     notifyAllHR(

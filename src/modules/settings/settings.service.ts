@@ -9,6 +9,13 @@ export interface AppSettings {
   stations: string[];
   /** Expected working days per month and the full monthly stipend (naira). */
   stipend: { INTERNSHIP: StipendRule; NYSC_IT: StipendRule };
+  /**
+   * Face check at check-in. Off until switched on in Configuration, so the
+   * intern app (with the photo screens) can be deployed first. Threshold is the
+   * minimum similarity (0–1) a check-in selfie needs; below it the check-in is
+   * flagged for HR. 0.5 is lenient: tune it once real check-ins come in.
+   */
+  faceCheck: { enabled: boolean; threshold: number };
   updatedAt: string | null;
 }
 
@@ -22,6 +29,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     INTERNSHIP: { days: 20, amount: 40_000 },
     NYSC_IT: { days: 16, amount: 50_000 },
   },
+  faceCheck: { enabled: false, threshold: 0.5 },
   updatedAt: null,
 };
 
@@ -43,6 +51,10 @@ export async function getSettings(): Promise<AppSettings> {
         amount: doc?.stipend?.NYSC_IT?.amount ?? DEFAULT_SETTINGS.stipend.NYSC_IT.amount,
       },
     },
+    faceCheck: {
+      enabled: doc?.faceCheck?.enabled ?? DEFAULT_SETTINGS.faceCheck.enabled,
+      threshold: doc?.faceCheck?.threshold ?? DEFAULT_SETTINGS.faceCheck.threshold,
+    },
     updatedAt: doc?.updatedAt ? new Date(doc.updatedAt).toISOString() : null,
   };
 }
@@ -52,6 +64,8 @@ export async function updateSettings(input: UpdateSettingsInput, actorId: string
   if (input.labels?.INTERNSHIP) set['labels.INTERNSHIP'] = input.labels.INTERNSHIP;
   if (input.labels?.NYSC_IT) set['labels.NYSC_IT'] = input.labels.NYSC_IT;
   if (input.stations) set['stations'] = input.stations;
+  if (input.faceCheck?.enabled !== undefined) set['faceCheck.enabled'] = input.faceCheck.enabled;
+  if (input.faceCheck?.threshold !== undefined) set['faceCheck.threshold'] = input.faceCheck.threshold;
   for (const type of ['INTERNSHIP', 'NYSC_IT'] as const) {
     const rule = input.stipend?.[type];
     if (rule?.days !== undefined) set[`stipend.${type}.days`] = rule.days;

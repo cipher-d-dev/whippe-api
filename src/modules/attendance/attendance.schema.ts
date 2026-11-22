@@ -1,3 +1,4 @@
+import { checkInFaceField } from '../face/face.schema';
 import { z } from 'zod';
 import { CheckType, AttendanceStatus } from './attendance.types';
 
@@ -9,6 +10,10 @@ export const checkInSchema = z.object({
     latitude: z.number({ required_error: 'latitude is required' }),
     longitude: z.number({ required_error: 'longitude is required' }),
     locationAccuracy: z.number().positive().optional(),
+    // Face check: selfie, fingerprints and liveness from the phone (check-in only)
+    face: checkInFaceField,
+    // Random ID the app stores on the phone, to spot one phone checking in two people
+    deviceId: z.string().trim().min(8).max(64).optional(),
   }),
 });
 
