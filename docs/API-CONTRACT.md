@@ -2154,3 +2154,34 @@ refresh sessions with the API on onrender.com. Requires `NODE_ENV=production`.
 Run at startup, once each, recorded in the `migrations` collection. Only when
 `NODE_ENV=production` (or `RUN_MIGRATIONS=true`) and `ADMIN_URL` is set.
 `2026-11-roster` applies HR's department and supervisor roster and creates Cindy Uduma's logins.
+
+---
+
+## 20. Face check
+
+Off until HR turns it on (`PATCH /settings { faceCheck: { enabled: true, threshold } }`).
+The phone computes face "fingerprints" (1024 numbers, faceres model from the
+open-source Human library) and a liveness result; the server stores the
+reference fingerprints and does all matching. Photos are uploaded by the server
+to Appwrite with no public permissions and only served to HR through the API.
+
+| Method | Path | Role | |
+|---|---|---|---|
+| GET | `/face/me` | INTERN | `{ face: { status: NONE\|PENDING\|APPROVED\|REJECTED, rejectionReason, required } }` |
+| POST | `/face/me` | INTERN | `{ photo: dataURL, descriptors: number[1024][1..5], liveness: { blink, real, live }, consent: true }` → PENDING |
+| GET | `/face?status=` | HR | photos to review |
+| GET | `/face/:internId` | HR | status |
+| GET | `/face/:internId/photo` | HR | JPEG |
+| PATCH | `/face/:internId` | HR | `{ action: 'APPROVE' }` or `{ action: 'REJECT', reason }` |
+| GET | `/face/checkins/:attendanceId/selfie` | HR | JPEG |
+
+`POST /attendance/check-in` (check-in only) accepts `face: { photo, descriptors, liveness }`
+and `deviceId`. With face check on:
+- no reference photo, or HR asked for a new one → `412`;
+- no selfie → flagged `NO_SELFIE`;
+- liveness failed → `LIVENESS_FAILED`;
+- score below threshold (only once the reference is APPROVED) → `FACE_MISMATCH`;
+- same `deviceId` used by another intern's check-in that day → both flagged `SHARED_DEVICE`.
+
+Attendance records now include `faceScore` (0–1), `livenessPassed` and `hasSelfie`.
+Face data of interns who completed more than 30 days ago is deleted by the daily cleanup job.

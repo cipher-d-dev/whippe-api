@@ -19,6 +19,10 @@
  */
 
 import { Client, Storage, ID } from 'node-appwrite';
+// node-appwrite only exposes InputFile via its "./file" export, which this
+// project's TypeScript module setting can't resolve, so it's required directly.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { InputFile } = require('node-appwrite/file') as { InputFile: { fromBuffer(parts: Buffer, name: string): File } };
 import { env } from '../config/env';
 
 // ─── Lazy client — only initialised when Appwrite vars are present ────────────
@@ -95,4 +99,15 @@ export async function deleteFile(storageKey: string): Promise<void> {
   const bucketId = getBucketId();
 
   await storage.deleteFile(bucketId, storageKey);
+}
+
+// ─── Server-side upload ───────────────────────────────────────────────────────
+// Used for face photos: the server uploads with the API key and no public
+// permissions, so the file can only be read back through the API (HR only).
+// The file ID is never sent to a phone.
+
+export async function uploadPrivateFile(buffer: Buffer, name: string): Promise<string> {
+  const storage = new Storage(getClient());
+  const file = await storage.createFile(getBucketId(), ID.unique(), InputFile.fromBuffer(buffer, name), []);
+  return file.$id;
 }

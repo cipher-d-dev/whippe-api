@@ -1,4 +1,5 @@
 import { deleteExpiredPendingAccounts } from '../modules/users/users.service';
+import { deleteExpiredFaceData } from '../modules/face/face.service';
 
 // Run cleanup every 24 hours
 const CLEANUP_INTERVAL_MS = 24 * 60 * 60 * 1000;
@@ -10,6 +11,10 @@ async function runCleanup(): Promise<void> {
     const deleted = await deleteExpiredPendingAccounts();
     if (deleted > 0) {
       console.log(`🧹  Cleanup: deleted ${deleted} expired pending account(s)`);
+    }
+    const faceItems = await deleteExpiredFaceData();
+    if (faceItems > 0) {
+      console.log(`🧹  Cleanup: deleted ${faceItems} face photo(s)/selfie(s) of interns who finished over 30 days ago`);
     }
   } catch (err) {
     // Log but do not crash the server — cleanup will retry on next interval

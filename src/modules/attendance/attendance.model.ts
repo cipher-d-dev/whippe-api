@@ -22,6 +22,12 @@ export interface IAttendance {
   userAgent?: string;
   flagReasons?: string[];            // e.g. ['OUTSIDE_GEOFENCE', 'POOR_ACCURACY']
 
+  // Face check (see modules/face)
+  selfieKey?: string;                // private file in Appwrite; served to HR via the API only
+  faceScore?: number;                // 0–1 similarity to the intern's reference photo
+  livenessPassed?: boolean;
+  deviceId?: string;                 // random ID the app keeps on the phone
+
   // HR correction
   correctedBy?: mongoose.Types.ObjectId;
   correctedAt?: Date;
@@ -57,6 +63,11 @@ const attendanceSchema = new Schema<IAttendanceDocument, IAttendanceModel>(
     userAgent: { type: String, select: false },
     flagReasons: [{ type: String }],
 
+    selfieKey: { type: String },
+    faceScore: Number,
+    livenessPassed: Boolean,
+    deviceId: { type: String, select: false },
+
     correctedBy: { type: Schema.Types.ObjectId, ref: 'User' },
     correctedAt: Date,
     correctionNote: String,
@@ -66,6 +77,9 @@ const attendanceSchema = new Schema<IAttendanceDocument, IAttendanceModel>(
     toJSON: {
       transform(_doc, ret: Record<string, unknown>) {
         ret['__v'] = undefined;
+        // Never send the storage key; HR fetches the selfie via /face/checkins/:id/selfie
+        ret['hasSelfie'] = Boolean(ret['selfieKey']);
+        ret['selfieKey'] = undefined;
         return ret;
       },
     },
@@ -80,6 +94,7 @@ attendanceSchema.index(
 attendanceSchema.index({ intern: 1, date: -1 });
 attendanceSchema.index({ status: 1 });
 attendanceSchema.index({ date: -1 });
+attendanceSchema.index({ date: 1, deviceId: 1 });
 
 export const Attendance = mongoose.model<IAttendanceDocument, IAttendanceModel>(
   'Attendance',

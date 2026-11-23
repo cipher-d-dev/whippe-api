@@ -14,4 +14,6 @@ export enum NotificationType {
   DOCUMENT_UPLOADED = 'DOCUMENT_UPLOADED',
   REPORT_SUBMITTED = 'REPORT_SUBMITTED',
   BROADCAST = 'BROADCAST',
+  FACE_PHOTO_SUBMITTED = 'FACE_PHOTO_SUBMITTED',   // to HR: a reference photo is waiting for approval
+  FACE_PHOTO_REVIEWED = 'FACE_PHOTO_REVIEWED',     // to intern: approved, or retake needed
 }

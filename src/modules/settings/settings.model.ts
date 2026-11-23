@@ -16,6 +16,8 @@ export interface ISettings {
     INTERNSHIP?: { days?: number; amount?: number };
     NYSC_IT?: { days?: number; amount?: number };
   };
+  /** Face check at check-in: on/off and how close a match must be (0–1). */
+  faceCheck?: { enabled?: boolean; threshold?: number };
   updatedBy?: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
@@ -35,6 +37,7 @@ const settingsSchema = new Schema<ISettingsDocument>(
       INTERNSHIP: { days: Number, amount: Number },
       NYSC_IT: { days: Number, amount: Number },
     },
+    faceCheck: { enabled: Boolean, threshold: Number },
     updatedBy: { type: Schema.Types.ObjectId, ref: 'User' },
   },
   { timestamps: true },
