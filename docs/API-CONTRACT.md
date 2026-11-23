@@ -2190,6 +2190,6 @@ Face data of interns who completed more than 30 days ago is deleted by the daily
 
 ## 21. Late November fixes
 
-- **Check-out guard:** `POST /attendance/check-in` with `checkType: CHECK_OUT` is refused (`409`) without a check-in that day, or within 30 minutes of it. Interns were checked out by a second tap on the same button.
+- **Check-out guard:** `POST /attendance/check-in` with `checkType: CHECK_OUT` is refused (`409`) without a check-in that day, or within 60 seconds of it (a double tap). Otherwise check-out is allowed at any time, e.g. leaving early.
 - **Allowance (payroll):** interns have `receivesAllowance` (HR only; `null` resets to the default). Defaults per type are in settings: `allowance: { INTERNSHIP: false, NYSC_IT: true }`. `GET /interns?allowance=yes|no` filters on it. The stipend report only lists people on allowance and returns `notOnAllowance` (how many were left out).
 - **Keep awake:** removed. Render advises against pinging free services to stop them sleeping; the intern app instead retries and tells people the server may be starting up.

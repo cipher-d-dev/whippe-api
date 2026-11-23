@@ -22,8 +22,12 @@ function toDateOnly(d: Date): Date {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
 }
 
-/** Earliest check-out after a check-in, in minutes (stops accidental double taps). */
-export const MIN_MINUTES_BEFORE_CHECKOUT = 30;
+/**
+ * A check-out this soon after the check-in is treated as an accidental double
+ * tap, not a decision. Kept tiny on purpose: people can leave early (emergencies);
+ * the app asks them to confirm instead.
+ */
+export const MIN_SECONDS_BEFORE_CHECKOUT = 60;
 
 export const POOR_ACCURACY_THRESHOLD_METERS = 50; // flag if accuracy > 50m
 
@@ -78,18 +82,15 @@ export async function checkIn(
   }
 
   // ── Check-out guard ───────────────────────────────────────────────────────
-  // Interns reported being checked out straight after checking in (a second tap
-  // on the same button). A check-out needs a check-in first and must come at
-  // least MIN_MINUTES_BEFORE_CHECKOUT after it.
+  // Keeps check-in and check-out from getting crossed: a check-out needs a
+  // check-in that day, and one sent within a minute of it is a double tap.
+  // Otherwise people can check out whenever they need to (e.g. an emergency).
   if (input.checkType === CheckType.CHECK_OUT) {
     const checkInToday = await Attendance.findOne({ intern: intern._id, date: today, checkType: CheckType.CHECK_IN });
-    if (!checkInToday) throw createError('Check in first. You can check out at the end of the day.', 409);
-    const minutes = (now.getTime() - new Date(checkInToday.submittedAt).getTime()) / 60_000;
-    if (minutes < MIN_MINUTES_BEFORE_CHECKOUT) {
-      throw createError(
-        `You checked in ${Math.max(1, Math.round(minutes))} minute${Math.round(minutes) === 1 ? '' : 's'} ago. You can check out after ${MIN_MINUTES_BEFORE_CHECKOUT} minutes.`,
-        409,
-      );
+    if (!checkInToday) throw createError('Check in first, then you can check out.', 409);
+    const seconds = (now.getTime() - new Date(checkInToday.submittedAt).getTime()) / 1000;
+    if (seconds < MIN_SECONDS_BEFORE_CHECKOUT) {
+      throw createError('You only just checked in, so this looks like a double tap. If you need to leave, check out again in a minute.', 409);
     }
   }
 
