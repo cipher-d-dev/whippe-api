@@ -38,3 +38,32 @@ describe('one phone, two interns', () => {
     expect((Attendance.create as jest.Mock).mock.calls[0][0].status).toBe(AttendanceStatus.ACCEPTED);
   });
 });
+
+describe('check-out guard', () => {
+  const internId = new mongoose.Types.ObjectId();
+  beforeEach(() => {
+    (Intern.findOne as jest.Mock).mockResolvedValue({ _id: internId, firstName: 'A', lastName: 'B' });
+  });
+
+  it('refuses a check-out a minute after checking in', async () => {
+    (Attendance.findOne as jest.Mock)
+      .mockResolvedValueOnce(null) // no duplicate check-out
+      .mockResolvedValueOnce({ submittedAt: new Date(Date.now() - 60_000) }); // checked in 1 min ago
+    await expect(checkIn('u1', { checkType: CheckType.CHECK_OUT, ...office }, 'ip', 'ua')).rejects.toMatchObject({ statusCode: 409 });
+    expect(Attendance.create).not.toHaveBeenCalled();
+  });
+
+  it('refuses a check-out with no check-in', async () => {
+    (Attendance.findOne as jest.Mock).mockResolvedValueOnce(null).mockResolvedValueOnce(null);
+    await expect(checkIn('u1', { checkType: CheckType.CHECK_OUT, ...office }, 'ip', 'ua')).rejects.toMatchObject({ statusCode: 409 });
+  });
+
+  it('allows a check-out later in the day', async () => {
+    (Attendance.findOne as jest.Mock)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ submittedAt: new Date(Date.now() - 8 * 3_600_000) });
+    (Attendance.find as jest.Mock).mockResolvedValue([]);
+    await checkIn('u1', { checkType: CheckType.CHECK_OUT, ...office }, 'ip', 'ua');
+    expect((Attendance.create as jest.Mock).mock.calls[0][0].checkType).toBe(CheckType.CHECK_OUT);
+  });
+});

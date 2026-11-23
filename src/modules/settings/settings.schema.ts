@@ -22,6 +22,10 @@ export const updateSettingsSchema = z.object({
         .max(20)
         .refine((a) => new Set(a.map((s) => s.toLowerCase())).size === a.length, 'Station names must be different')
         .optional(),
+      allowance: z
+        .object({ INTERNSHIP: z.boolean().optional(), NYSC_IT: z.boolean().optional() })
+        .strict()
+        .optional(),
       faceCheck: z
         .object({
           enabled: z.boolean().optional(),

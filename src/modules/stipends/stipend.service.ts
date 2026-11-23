@@ -19,6 +19,8 @@ import { createError } from '../../middleware/error-handler';
  *   20 weekdays (so corps members' 16 = 4 days a week).
  * - Suggested amount = full stipend × days worked ÷ expected days, never more
  *   than the full stipend, rounded to the nearest naira.
+ * - Only people on payroll are listed: their own "receives allowance" setting,
+ *   or the default for their type (SIWES/IT students are not on payroll).
  */
 
 const STANDARD_MONTH_WEEKDAYS = 20;
@@ -47,6 +49,15 @@ export interface StipendReport {
   rules: { INTERNSHIP: StipendRule; NYSC_IT: StipendRule };
   rows: StipendRow[];
   totals: { suggestedAmount: number; people: number };
+  /** Active in the period but not on payroll, so left out. */
+  notOnAllowance: number;
+}
+
+export function onAllowance(
+  intern: { internshipType: InternshipType; receivesAllowance?: boolean | null },
+  defaults: { INTERNSHIP: boolean; NYSC_IT: boolean },
+): boolean {
+  return typeof intern.receivesAllowance === 'boolean' ? intern.receivesAllowance : defaults[intern.internshipType] ?? false;
 }
 
 // ─── Pure helpers (exported for tests) ────────────────────────────────────────
@@ -136,7 +147,7 @@ export async function getStipendReport(query: { from?: string; to?: string }, no
   const settings = await getSettings();
   const rules = settings.stipend;
 
-  const interns = await Intern.find({
+  const candidates = await Intern.find({
     status: { $in: [InternshipStatus.ACTIVE, InternshipStatus.COMPLETED, InternshipStatus.ONBOARDING] },
     $and: [
       { $or: [{ startDate: { $exists: false } }, { startDate: null }, { startDate: { $lte: new Date(to.getTime() + DAY_MS - 1) } }] },
@@ -147,6 +158,7 @@ export async function getStipendReport(query: { from?: string; to?: string }, no
     .populate('supervisor', 'firstName lastName')
     .sort({ lastName: 1, firstName: 1 })
     .lean();
+  const interns = candidates.filter((i) => onAllowance(i as never, settings.allowance));
 
   const ids = interns.map((i) => i._id as mongoose.Types.ObjectId);
   const attendance = await Attendance.find({
@@ -197,5 +209,6 @@ export async function getStipendReport(query: { from?: string; to?: string }, no
     rules,
     rows,
     totals: { suggestedAmount: rows.reduce((s, r) => s + r.suggestedAmount, 0), people: rows.length },
+    notOnAllowance: candidates.length - interns.length,
   };
 }

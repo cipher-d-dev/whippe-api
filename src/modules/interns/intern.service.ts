@@ -1,3 +1,4 @@
+import { getSettings } from '../settings/settings.service';
 import mongoose from 'mongoose';
 import { Intern, IInternDocument } from './intern.model';
 import { Supervisor } from '../supervisors/supervisor.model';
@@ -56,6 +57,7 @@ export async function createIntern(
     callUpNumber: input.callUpNumber,
     internshipType: input.internshipType,
     status: input.status,
+    receivesAllowance: input.receivesAllowance,
     startDate: input.startDate,
     endDate: input.endDate,
     createdBy: new mongoose.Types.ObjectId(hrUserId),
@@ -69,7 +71,7 @@ export async function listInterns(
   actorUserId?: string,
   actorRole?: Role,
 ): Promise<PaginatedResponse<IInternDocument>> {
-  const { page, limit, status, internshipType, department, supervisor, search } = query;
+  const { page, limit, status, internshipType, department, supervisor, search, allowance } = query;
   const skip = (page - 1) * limit;
 
   const filter: Record<string, unknown> = {};
@@ -102,6 +104,15 @@ export async function listInterns(
       { institution: regex },
       { course: regex },
     ];
+  }
+
+  if (allowance) {
+    // Explicit yes/no on the record, otherwise the default for their type.
+    const { allowance: defaults } = await getSettings();
+    const want = allowance === 'yes';
+    const typesByDefault = (Object.keys(defaults) as (keyof typeof defaults)[]).filter((t) => defaults[t] === want);
+    const allowanceFilter = { $or: [{ receivesAllowance: want }, { receivesAllowance: { $exists: false }, internshipType: { $in: typesByDefault } }, { receivesAllowance: null, internshipType: { $in: typesByDefault } }] };
+    filter['$and'] = [...((filter['$and'] as unknown[]) ?? []), allowanceFilter];
   }
 
   const [data, total] = await Promise.all([
@@ -169,7 +180,10 @@ export async function updateIntern(
     }
   }
 
-  Object.assign(intern, input);
+  const { receivesAllowance, ...rest } = input;
+  Object.assign(intern, rest);
+  if (receivesAllowance === null) intern.receivesAllowance = undefined;
+  else if (receivesAllowance !== undefined) intern.receivesAllowance = receivesAllowance;
   await intern.save();
   return intern;
 }

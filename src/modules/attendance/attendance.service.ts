@@ -22,6 +22,9 @@ function toDateOnly(d: Date): Date {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
 }
 
+/** Earliest check-out after a check-in, in minutes (stops accidental double taps). */
+export const MIN_MINUTES_BEFORE_CHECKOUT = 30;
+
 export const POOR_ACCURACY_THRESHOLD_METERS = 50; // flag if accuracy > 50m
 
 // ─── getGeofence ──────────────────────────────────────────────────────────────
@@ -72,6 +75,22 @@ export async function checkIn(
       `You have already submitted a ${input.checkType.replace('_', '-').toLowerCase()} for today.`,
       409,
     );
+  }
+
+  // ── Check-out guard ───────────────────────────────────────────────────────
+  // Interns reported being checked out straight after checking in (a second tap
+  // on the same button). A check-out needs a check-in first and must come at
+  // least MIN_MINUTES_BEFORE_CHECKOUT after it.
+  if (input.checkType === CheckType.CHECK_OUT) {
+    const checkInToday = await Attendance.findOne({ intern: intern._id, date: today, checkType: CheckType.CHECK_IN });
+    if (!checkInToday) throw createError('Check in first. You can check out at the end of the day.', 409);
+    const minutes = (now.getTime() - new Date(checkInToday.submittedAt).getTime()) / 60_000;
+    if (minutes < MIN_MINUTES_BEFORE_CHECKOUT) {
+      throw createError(
+        `You checked in ${Math.max(1, Math.round(minutes))} minute${Math.round(minutes) === 1 ? '' : 's'} ago. You can check out after ${MIN_MINUTES_BEFORE_CHECKOUT} minutes.`,
+        409,
+      );
+    }
   }
 
   // ── Geofence evaluation ────────────────────────────────────────────────────

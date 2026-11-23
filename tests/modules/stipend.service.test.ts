@@ -62,3 +62,19 @@ describe('stipend helpers', () => {
     expect(() => parseDay('30/11/2026')).toThrow();
   });
 });
+
+import { onAllowance } from '../../src/modules/stipends/stipend.service';
+import { InternshipType } from '../../src/modules/interns/intern.types';
+
+describe('who is on payroll', () => {
+  const defaults = { INTERNSHIP: false, NYSC_IT: true };
+  it('follows the default for their type', () => {
+    expect(onAllowance({ internshipType: InternshipType.NYSC_IT }, defaults)).toBe(true);
+    expect(onAllowance({ internshipType: InternshipType.INTERNSHIP }, defaults)).toBe(false);
+  });
+  it('respects HR changing it for one person', () => {
+    expect(onAllowance({ internshipType: InternshipType.INTERNSHIP, receivesAllowance: true }, defaults)).toBe(true);
+    expect(onAllowance({ internshipType: InternshipType.NYSC_IT, receivesAllowance: false }, defaults)).toBe(false);
+    expect(onAllowance({ internshipType: InternshipType.INTERNSHIP, receivesAllowance: null }, defaults)).toBe(false);
+  });
+});

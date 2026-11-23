@@ -1,0 +1,27 @@
+# Render's free plan puts the API to sleep after 15 minutes without requests,
+# and the next person waits ~50 seconds (it looks like "the server is down").
+# This pings it every 10 minutes during DAAR working hours so it stays awake.
+# 05:00–19:59 UTC = 06:00–20:59 in Lagos, Monday to Saturday.
+# Free plan hours (750 a month) cover this comfortably.
+name: Keep API awake
+
+on:
+  schedule:
+    - cron: "*/10 5-19 * * 1-6"
+  workflow_dispatch: {}
+
+permissions: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Ping /health
+        run: |
+          for i in 1 2 3; do
+            code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 90 https://whippe-api.onrender.com/health) && echo "status $code"
+            [ "$code" = "200" ] && exit 0
+            sleep 10
+          done
+          echo "API did not answer with 200"; exit 1

@@ -16,6 +16,8 @@ export interface AppSettings {
    * flagged for HR. 0.5 is lenient: tune it once real check-ins come in.
    */
   faceCheck: { enabled: boolean; threshold: number };
+  /** On payroll by default, per type. HR said SIWES/IT students are not on payroll. */
+  allowance: { INTERNSHIP: boolean; NYSC_IT: boolean };
   updatedAt: string | null;
 }
 
@@ -30,6 +32,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     NYSC_IT: { days: 16, amount: 50_000 },
   },
   faceCheck: { enabled: false, threshold: 0.5 },
+  allowance: { INTERNSHIP: false, NYSC_IT: true },
   updatedAt: null,
 };
 
@@ -51,6 +54,10 @@ export async function getSettings(): Promise<AppSettings> {
         amount: doc?.stipend?.NYSC_IT?.amount ?? DEFAULT_SETTINGS.stipend.NYSC_IT.amount,
       },
     },
+    allowance: {
+      INTERNSHIP: doc?.allowance?.INTERNSHIP ?? DEFAULT_SETTINGS.allowance.INTERNSHIP,
+      NYSC_IT: doc?.allowance?.NYSC_IT ?? DEFAULT_SETTINGS.allowance.NYSC_IT,
+    },
     faceCheck: {
       enabled: doc?.faceCheck?.enabled ?? DEFAULT_SETTINGS.faceCheck.enabled,
       threshold: doc?.faceCheck?.threshold ?? DEFAULT_SETTINGS.faceCheck.threshold,
@@ -64,6 +71,8 @@ export async function updateSettings(input: UpdateSettingsInput, actorId: string
   if (input.labels?.INTERNSHIP) set['labels.INTERNSHIP'] = input.labels.INTERNSHIP;
   if (input.labels?.NYSC_IT) set['labels.NYSC_IT'] = input.labels.NYSC_IT;
   if (input.stations) set['stations'] = input.stations;
+  if (input.allowance?.INTERNSHIP !== undefined) set['allowance.INTERNSHIP'] = input.allowance.INTERNSHIP;
+  if (input.allowance?.NYSC_IT !== undefined) set['allowance.NYSC_IT'] = input.allowance.NYSC_IT;
   if (input.faceCheck?.enabled !== undefined) set['faceCheck.enabled'] = input.faceCheck.enabled;
   if (input.faceCheck?.threshold !== undefined) set['faceCheck.threshold'] = input.faceCheck.threshold;
   for (const type of ['INTERNSHIP', 'NYSC_IT'] as const) {

@@ -26,6 +26,11 @@ export interface IIntern {
   // ── Internship / placement information ───────────────────────────────────
   internshipType: InternshipType;
   status: InternshipStatus;
+  /**
+   * On payroll (paid the monthly allowance)? Unset = the default for their type
+   * from settings (corps members yes; SIWES/IT students no). HR can override per person.
+   */
+  receivesAllowance?: boolean;
   startDate?: Date;
   endDate?: Date;
 
@@ -133,6 +138,8 @@ const internSchema = new Schema<IInternDocument, IInternModel>(
       enum: Object.values(InternshipType),
       required: true,
     },
+
+    receivesAllowance: { type: Boolean },
 
     status: {
       type: String,

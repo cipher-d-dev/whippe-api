@@ -47,6 +47,7 @@ export const createInternSchema = z.object({
     }),
 
     status: z.nativeEnum(InternshipStatus).optional(),
+    receivesAllowance: z.boolean().optional(),
 
     startDate: z.coerce.date().optional(),
     endDate: z.coerce.date().optional(),
@@ -88,6 +89,8 @@ export const updateInternSchema = z.object({
       callUpNumber: z.string().trim().max(50).optional(),
       internshipType: z.nativeEnum(InternshipType).optional(),
       status: z.nativeEnum(InternshipStatus).optional(),
+      // null = go back to the default for their type
+      receivesAllowance: z.boolean().nullable().optional(),
       startDate: z.coerce.date().optional(),
       endDate: z.coerce.date().optional(),
     })
@@ -123,6 +126,7 @@ export const listInternsSchema = z.object({
     department: z.string().optional(),
     supervisor: z.string().optional(),
     search: z.string().optional(),
+    allowance: z.enum(['yes', 'no']).optional(),
     page: z.coerce.number().int().positive().default(1),
     limit: z.coerce.number().int().positive().max(100).default(20),
   }),

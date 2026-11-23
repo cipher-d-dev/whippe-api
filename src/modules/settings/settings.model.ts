@@ -18,6 +18,8 @@ export interface ISettings {
   };
   /** Face check at check-in: on/off and how close a match must be (0–1). */
   faceCheck?: { enabled?: boolean; threshold?: number };
+  /** Who is on payroll by default, per type (HR can override per intern). */
+  allowance?: { INTERNSHIP?: boolean; NYSC_IT?: boolean };
   updatedBy?: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
@@ -38,6 +40,7 @@ const settingsSchema = new Schema<ISettingsDocument>(
       NYSC_IT: { days: Number, amount: Number },
     },
     faceCheck: { enabled: Boolean, threshold: Number },
+    allowance: { INTERNSHIP: Boolean, NYSC_IT: Boolean },
     updatedBy: { type: Schema.Types.ObjectId, ref: 'User' },
   },
   { timestamps: true },
