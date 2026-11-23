@@ -46,7 +46,8 @@ export const listAttendanceSchema = z.object({
     from: z.coerce.date().optional(),
     to: z.coerce.date().optional(),
     page: z.coerce.number().int().positive().default(1),
-    limit: z.coerce.number().int().positive().max(100).default(30),
+    // A day's check-ins for every intern are shown on one page, so allow up to 500.
+    limit: z.coerce.number().int().positive().max(500).default(30),
   }),
 });
 

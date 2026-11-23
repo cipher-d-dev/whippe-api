@@ -128,7 +128,8 @@ export const listInternsSchema = z.object({
     search: z.string().optional(),
     allowance: z.enum(['yes', 'no']).optional(),
     page: z.coerce.number().int().positive().default(1),
-    limit: z.coerce.number().int().positive().max(100).default(20),
+    // The dashboard's "finishing soon" panel loads all active interns at once.
+    limit: z.coerce.number().int().positive().max(500).default(20),
   }),
 });
 
