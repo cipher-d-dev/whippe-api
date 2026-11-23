@@ -29,7 +29,8 @@ export const listTasksSchema = z.object({
     supervisor: z.string().optional(),
     status:     z.string().optional(),
     page:       z.coerce.number().int().positive().default(1),
-    limit:      z.coerce.number().int().positive().max(100).default(20),
+    // The HR task board loads all open tasks at once.
+    limit:      z.coerce.number().int().positive().max(500).default(20),
   }),
 });
 export type ListTasksQuery = z.infer<typeof listTasksSchema>['query'];
