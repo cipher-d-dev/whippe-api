@@ -2192,4 +2192,4 @@ Face data of interns who completed more than 30 days ago is deleted by the daily
 
 - **Check-out guard:** `POST /attendance/check-in` with `checkType: CHECK_OUT` is refused (`409`) without a check-in that day, or within 30 minutes of it. Interns were checked out by a second tap on the same button.
 - **Allowance (payroll):** interns have `receivesAllowance` (HR only; `null` resets to the default). Defaults per type are in settings: `allowance: { INTERNSHIP: false, NYSC_IT: true }`. `GET /interns?allowance=yes|no` filters on it. The stipend report only lists people on allowance and returns `notOnAllowance` (how many were left out).
-- **Keep awake:** `.github/workflows/keep-awake.yml` pings `/health` every 10 minutes, 06:00–21:00 Lagos time, Monday–Saturday, so Render's free plan doesn't sleep during working hours.
+- **Keep awake:** `.github/workflows/keep-awake.yml` pings `/health` every 10 minutes, 06:00–19:00 Lagos time, Monday–Friday, so Render's free plan doesn't sleep during working hours.
