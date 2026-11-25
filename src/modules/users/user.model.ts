@@ -10,6 +10,8 @@ export interface IUser {
   firstName: string;
   lastName: string;
   avatarUrl?: string;
+  /** Last time they used chat (for "last seen"). */
+  lastSeenAt?: Date;
   role: Role;
   status: AccountStatus;
   authMethod: AuthMethod;
@@ -84,6 +86,8 @@ const userSchema = new Schema<IUserDocument, IUserModel>(
       type: String,
       trim: true,
     },
+
+    lastSeenAt: Date,
 
     role: {
       type: String,

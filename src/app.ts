@@ -73,6 +73,7 @@ import dashboardRouter from './modules/dashboard/dashboard.routes';
 import settingsRouter from './modules/settings/settings.routes';
 import stipendsRouter from './modules/stipends/stipend.routes';
 import faceRouter from './modules/face/face.routes';
+import chatRouter from './modules/chat/chat.routes';
 
 app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/users', usersRouter);
@@ -91,6 +92,7 @@ app.use('/api/v1/admin/dashboard', dashboardRouter);
 app.use('/api/v1/settings', settingsRouter);
 app.use('/api/v1/admin/stipends', stipendsRouter);
 app.use('/api/v1/face', faceRouter);
+app.use('/api/v1/chat', chatRouter);
 app.use('/api/v1', timelineRouter);
 
 // ─── 404 ─────────────────────────────────────────────────────────────────────

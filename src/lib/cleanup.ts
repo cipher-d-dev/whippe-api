@@ -1,10 +1,23 @@
 import { deleteExpiredPendingAccounts } from '../modules/users/users.service';
 import { deleteExpiredFaceData } from '../modules/face/face.service';
+import { deleteExpiredChats, sendUnreadNudges } from '../modules/chat/chat.service';
 
 // Run cleanup every 24 hours
 const CLEANUP_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
 let cleanupTimer: ReturnType<typeof setInterval> | null = null;
+let nudgeTimer: ReturnType<typeof setInterval> | null = null;
+
+/** Unread-chat emails are checked every 30 minutes (while the server is awake). */
+const NUDGE_INTERVAL_MS = 30 * 60 * 1000;
+async function runNudges(): Promise<void> {
+  try {
+    const sent = await sendUnreadNudges();
+    if (sent > 0) console.log(`💬  Emailed ${sent} person(s) about unread chat messages`);
+  } catch (err) {
+    console.error('Chat nudge job error:', err);
+  }
+}
 
 async function runCleanup(): Promise<void> {
   try {
@@ -15,6 +28,10 @@ async function runCleanup(): Promise<void> {
     const faceItems = await deleteExpiredFaceData();
     if (faceItems > 0) {
       console.log(`🧹  Cleanup: deleted ${faceItems} face photo(s)/selfie(s) of interns who finished over 30 days ago`);
+    }
+    const chatItems = await deleteExpiredChats();
+    if (chatItems > 0) {
+      console.log(`🧹  Cleanup: deleted ${chatItems} chat message(s) of interns who finished over 30 days ago`);
     }
   } catch (err) {
     // Log but do not crash the server — cleanup will retry on next interval
@@ -43,6 +60,9 @@ export function startCleanupJob(): void {
     cleanupTimer.unref();
   }
 
+  nudgeTimer = setInterval(() => void runNudges(), NUDGE_INTERVAL_MS);
+  if (nudgeTimer.unref) nudgeTimer.unref();
+
   console.log('🧹  Cleanup job started (interval: 24 h)');
 }
 
@@ -55,5 +75,9 @@ export function stopCleanupJob(): void {
   if (cleanupTimer) {
     clearInterval(cleanupTimer);
     cleanupTimer = null;
+  }
+  if (nudgeTimer) {
+    clearInterval(nudgeTimer);
+    nudgeTimer = null;
   }
 }
