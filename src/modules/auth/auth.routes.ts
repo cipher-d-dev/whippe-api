@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, Request } from 'express';
 import rateLimit from 'express-rate-limit';
 import { authenticate } from '../../middleware/auth';
 import {
@@ -26,19 +26,41 @@ const router = Router();
 
 // ─── Rate limiters ────────────────────────────────────────────────────────────
 
-// Auth (login, signup, refresh) — 15 attempts per 15 minutes per IP
+// Everyone on DAAR's office Wi-Fi shares one public IP, so limits keyed by IP
+// alone lock the whole office out at once (e.g. when every supervisor signs in
+// after an invitation). Attempts are counted per IP *and* email instead: still
+// stops guessing one account's password, without blocking colleagues.
+const perEmail = (req: Request) => {
+  const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase()
+    : typeof req.query?.email === 'string' ? String(req.query.email).trim().toLowerCase() : '';
+  return `${req.ip}|${email}`;
+};
+
+// Auth (login, signup, password changes) — 15 attempts per 15 minutes per IP + email
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 15,
+  keyGenerator: perEmail,
   standardHeaders: true,
   legacyHeaders: false,
   message: { success: false, message: 'Too many attempts. Please try again in 15 minutes.' },
 });
 
-// Email endpoints — stricter: 5 per 15 minutes (prevents email spam)
+// Token refresh happens on every page load for every signed-in person, and
+// needs a valid refresh cookie anyway, so it only needs a loose per-IP cap.
+const refreshLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 1000,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Too many attempts. Please try again in 15 minutes.' },
+});
+
+// Email endpoints — stricter: 5 per 15 minutes per IP + email (prevents email spam)
 const emailLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 5,
+  keyGenerator: perEmail,
   standardHeaders: true,
   legacyHeaders: false,
   message: {
@@ -56,7 +78,7 @@ router.post('/signup', authLimiter, signupHandler);
 router.post('/login', authLimiter, loginHandler);
 
 // POST /api/v1/auth/refresh  — reads refresh token from HTTP-only cookie
-router.post('/refresh', authLimiter, refreshHandler);
+router.post('/refresh', refreshLimiter, refreshHandler);
 
 // ─── Email verification ───────────────────────────────────────────────────────
 
