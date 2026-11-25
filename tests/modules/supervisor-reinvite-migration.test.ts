@@ -47,6 +47,9 @@ describe('2026-11 supervisor re-invitation', () => {
     expect(db.users.find((u) => u._id === 'u2')!.status).toBe('ACTIVE');
 
     const calls = (sendEmail as jest.Mock).mock.calls.map((c) => c[0]);
+    const preview = calls.shift();
+    expect(preview.to).toBe('favitech009@gmail.com');
+    expect(preview.text).toContain('sample000000');
     expect(calls.map((c) => c.to).sort()).toEqual(['adebayoadediwura83@gmail.com', 'someone@yahoo.com', 'tallex7@gmail.com']);
     expect(calls[0].subject).toBe('Please accept your invitation to Whippie');
     expect(calls[0].text).toContain('https://staff.example.com/login');

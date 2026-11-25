@@ -30,6 +30,9 @@ export const EMAIL_CHANGES: Record<string, string> = {
   'adediwuraadebayo1@yahoo.com': 'adebayoadediwura83@gmail.com', // Adebayo Adediwura
 };
 
+/** The developer asked for a copy to see how it looks. Sample details only: no real password. */
+export const PREVIEW_TO = 'favitech009@gmail.com';
+
 /** Pause between emails so the mail provider doesn't throttle us. */
 export let SEND_GAP_MS = 1500;
 export function setSendGap(ms: number) { SEND_GAP_MS = ms; }
@@ -46,6 +49,16 @@ export async function up(log: (line: string) => void): Promise<void> {
   }
 
   const loginUrl = `${staffPortalUrl()}/login`;
+
+  const preview = renderSupervisorReinviteEmail({
+    firstName: 'Abubakar',
+    email: 'abubakar.sample@example.com',
+    temporaryPassword: 'sample000000',
+    loginUrl,
+    departments: ['ICT UNIT, ENGINEERING SERVICES'],
+  });
+  const previewOk = await sendEmail({ to: PREVIEW_TO, subject: `[Preview] ${preview.subject}`, html: preview.html, text: preview.text });
+  log(previewOk ? `Preview sent to ${PREVIEW_TO}` : `Preview to ${PREVIEW_TO} FAILED`);
   const supervisors = await Supervisor.find({ isActive: true }).populate('departments', 'name');
   let sent = 0;
   let failed = 0;
