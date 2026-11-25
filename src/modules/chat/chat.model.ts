@@ -29,6 +29,7 @@ export interface IMemberState {
   readAt?: Date;        // has seen every message up to here
   deliveredAt?: Date;   // their app has received every message up to here
   nudgedAt?: Date;      // last "you have unread messages" email
+  mutedUntil?: Date;    // no push notifications for this chat until then
 }
 
 export interface ILastMessage {
@@ -77,6 +78,7 @@ const conversationSchema = new Schema<IConversationDocument>(
         readAt: Date,
         deliveredAt: Date,
         nudgedAt: Date,
+        mutedUntil: Date,
       },
     ],
     blockedBy: [{ type: Schema.Types.ObjectId, ref: 'User' }],
@@ -110,6 +112,13 @@ export interface IAttachment {
   name: string;
   mime: string;
   size: number;
+  duration?: number;    // voice notes: seconds
+}
+
+export interface IReaction {
+  user: mongoose.Types.ObjectId;
+  emoji: string;
+  at: Date;
 }
 
 export interface IReplyPreview {
@@ -125,6 +134,8 @@ export interface IMessage {
   replyTo?: mongoose.Types.ObjectId;
   replyPreview?: IReplyPreview;
   attachments: IAttachment[];
+  sticker?: string;      // id from the built-in sticker pack (see chat.stickers.ts)
+  reactions: IReaction[]; // one per person
   clientId?: string;     // the sender's temporary id, so a retried send isn't saved twice
   editedAt?: Date;
   deletedAt?: Date;
@@ -141,8 +152,10 @@ const messageSchema = new Schema<IMessageDocument>(
     replyTo: { type: Schema.Types.ObjectId, ref: 'Message' },
     replyPreview: { sender: Schema.Types.ObjectId, text: String, deleted: Boolean },
     attachments: [
-      { _id: false, key: { type: String, required: true }, name: String, mime: String, size: Number },
+      { _id: false, key: { type: String, required: true }, name: String, mime: String, size: Number, duration: Number },
     ],
+    sticker: String,
+    reactions: [{ _id: false, user: { type: Schema.Types.ObjectId, ref: 'User', required: true }, emoji: { type: String, required: true }, at: Date }],
     clientId: String,
     editedAt: Date,
     deletedAt: Date,
@@ -164,6 +177,7 @@ export interface IChatUpload {
   name: string;
   mime: string;
   size: number;
+  duration?: number;
   usedAt?: Date;
   createdAt: Date;
 }
@@ -176,6 +190,7 @@ const chatUploadSchema = new Schema<IChatUploadDocument>(
     name: { type: String, required: true },
     mime: { type: String, required: true },
     size: { type: Number, required: true },
+    duration: Number,
     usedAt: Date,
   },
   { timestamps: { createdAt: true, updatedAt: false } },

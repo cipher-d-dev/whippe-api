@@ -86,6 +86,12 @@ describe('intern-to-intern chat', () => {
     expect(mine.find((c) => c.id === dm)).toMatchObject({ unread: 1, canSend: true });
   });
 
+  it('info shows the other intern\'s basic details only', async () => {
+    const info = await chat.chatInfo(intern, dm);
+    expect(info.profile).toEqual(expect.objectContaining({ name: 'Chiamaka T' }));
+    expect(Object.keys(info.profile!)).toEqual(['name', 'avatarUrl', 'department', 'station', 'internshipType', 'since', 'lastSeenAt']);
+  });
+
   it('blocking stops messages both ways until unblocked', async () => {
     await chat.setBlocked(intern2, dm, true);
     await expect(chat.sendMessage(intern, dm, { text: 'hello?', uploads: [] })).rejects.toMatchObject({ statusCode: 403 });

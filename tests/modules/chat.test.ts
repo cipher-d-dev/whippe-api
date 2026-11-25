@@ -171,12 +171,58 @@ describe('chat', () => {
       .rejects.toMatchObject({ statusCode: 400 }); // not theirs
 
     const m = await chat.sendMessage(intern, convId, { text: '', uploads: [up.id] });
-    expect(m.attachments).toEqual([{ index: 0, name: 'screen shot.png', mime: 'image/png', size: png.length }]);
+    expect(m.attachments).toEqual([{ index: 0, name: 'screen shot.png', mime: 'image/png', size: png.length, duration: null }]);
     const conv = models.Conversation.store.find((c) => String(c._id) === convId)!;
     expect(conv.lastMessage.text).toBe('📷 Photo');
     await expect(chat.sendMessage(intern, convId, { text: 'again', uploads: [up.id] })).rejects.toMatchObject({ statusCode: 400 });
     await expect(chat.getAttachment(intern2, m.id, 0)).rejects.toMatchObject({ statusCode: 404 });
     await expect(chat.getAttachment(hr2, m.id, 0)).resolves.toMatchObject({ mime: 'image/png' });
+  });
+
+  it('reacts once per person: add, change, remove', async () => {
+    const m = await chat.sendMessage(intern, convId, { text: 'Is Friday a holiday?', uploads: [] });
+    let v = await chat.react(hr1, m.id, '👍');
+    v = await chat.react(hr2, m.id, '👍');
+    expect(v.reactions).toEqual([{ emoji: '👍', users: [{ id: hr1.id, name: 'Cindy T' }, { id: hr2.id, name: 'Bola T' }] }]);
+    v = await chat.react(hr1, m.id, '😂');
+    expect(v.reactions.map((r) => [r.emoji, r.users.length])).toEqual([['👍', 1], ['😂', 1]]);
+    v = await chat.react(hr1, m.id, '😂');
+    expect(v.reactions.map((r) => r.emoji)).toEqual(['👍']);
+  });
+
+  it('sends stickers and voice notes, with list previews', async () => {
+    await chat.sendMessage(hr1, convId, { text: '', uploads: [], sticker: 'thank-you' });
+    let conv = models.Conversation.store.find((c) => String(c._id) === convId)!;
+    expect(conv.lastMessage.text).toBe('✨ Sticker');
+
+    const webm = Buffer.concat([Buffer.from([0x1a, 0x45, 0xdf, 0xa3]), Buffer.alloc(40)]);
+    await expect(chat.uploadAttachment(intern, webm, 'voice.webm')).rejects.toMatchObject({ statusCode: 415 }); // not as a file
+    const up = await chat.uploadAttachment(intern, webm, 'voice.webm', { kind: 'voice', duration: 12.4 });
+    expect(up).toMatchObject({ mime: 'audio/webm', duration: 12 });
+    const m = await chat.sendMessage(intern, convId, { text: '', uploads: [up.id] });
+    expect(m.attachments[0]).toMatchObject({ mime: 'audio/webm', duration: 12 });
+    conv = models.Conversation.store.find((c) => String(c._id) === convId)!;
+    expect(conv.lastMessage.text).toBe('🎤 Voice message (0:12)');
+  });
+
+  it('a muted chat sends no push notifications to that person', async () => {
+    await chat.setMute(hr1, convId, '8h');
+    (sendPushToUser as jest.Mock).mockClear();
+    await chat.sendMessage(intern, convId, { text: 'Hello again', uploads: [] });
+    await flush();
+    expect((sendPushToUser as jest.Mock).mock.calls.map((c) => c[0])).toEqual([hr2.id]);
+    expect((await chat.getConversation(hr1, convId)).mutedUntil).not.toBeNull();
+    await chat.setMute(hr1, convId, 'off');
+    expect((await chat.getConversation(hr1, convId)).mutedUntil).toBeNull();
+  });
+
+  it('chat info lists shared photos, voice notes and links', async () => {
+    await chat.sendMessage(intern, convId, { text: 'See https://daar.com/careers and http://x.test/a.', uploads: [] });
+    const info = await chat.chatInfo(intern, convId);
+    expect(info.profile).toMatchObject({ name: 'HR team', team: ['Bola T', 'Cindy T'] });
+    expect(info.media.map((f) => f.name)).toContain('screen shot.png');
+    expect(info.voice).toHaveLength(1);
+    expect(info.links.map((l) => l.url)).toEqual(['https://daar.com/careers', 'http://x.test/a']);
   });
 
   it('HR and a supervisor can DM; other HR cannot see it', async () => {
