@@ -109,6 +109,19 @@ export async function listFacePhotos(status?: string) {
   }));
 }
 
+/** Active and onboarding interns who haven't sent a face photo yet (it's mandatory). */
+export async function listMissingFacePhotos() {
+  const withPhoto = await FaceProfile.distinct('intern');
+  return Intern.find({
+    status: { $in: [InternshipStatus.ACTIVE, InternshipStatus.ONBOARDING] },
+    _id: { $nin: withPhoto },
+  })
+    .select('firstName lastName internshipType department')
+    .populate('department', 'name')
+    .sort({ lastName: 1, firstName: 1 })
+    .lean();
+}
+
 export async function getInternFace(internId: string) {
   if (!mongoose.isValidObjectId(internId)) throw createError('Invalid intern ID.', 400);
   const p = await FaceProfile.findOne({ intern: internId });

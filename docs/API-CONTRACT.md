@@ -2159,7 +2159,7 @@ Run at startup, once each, recorded in the `migrations` collection. Only when
 
 ## 20. Face check
 
-Off until HR turns it on (`PATCH /settings { faceCheck: { enabled: true, threshold } }`).
+**Mandatory for every intern** (always on; `faceCheck.enabled` is ignored). HR sets only how strict it is: `PATCH /settings { faceCheck: { threshold } }` (default 0.35, lenient). `GET /face/missing` (HR) lists active and onboarding interns with no face photo yet.
 The phone computes face "fingerprints" (1024 numbers, faceres model from the
 open-source Human library) and a liveness result; the server stores the
 reference fingerprints and does all matching. Photos are uploaded by the server

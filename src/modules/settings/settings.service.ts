@@ -31,7 +31,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
     INTERNSHIP: { days: 20, amount: 40_000 },
     NYSC_IT: { days: 16, amount: 50_000 },
   },
-  faceCheck: { enabled: false, threshold: 0.5 },
+  // Face check is mandatory for every intern (DAAR HR's decision), so it can't be switched off.
+  faceCheck: { enabled: true, threshold: 0.35 },
   allowance: { INTERNSHIP: false, NYSC_IT: true },
   updatedAt: null,
 };
@@ -59,7 +60,7 @@ export async function getSettings(): Promise<AppSettings> {
       NYSC_IT: doc?.allowance?.NYSC_IT ?? DEFAULT_SETTINGS.allowance.NYSC_IT,
     },
     faceCheck: {
-      enabled: doc?.faceCheck?.enabled ?? DEFAULT_SETTINGS.faceCheck.enabled,
+      enabled: true, // mandatory; any old stored 'off' is ignored
       threshold: doc?.faceCheck?.threshold ?? DEFAULT_SETTINGS.faceCheck.threshold,
     },
     updatedAt: doc?.updatedAt ? new Date(doc.updatedAt).toISOString() : null,
@@ -73,7 +74,6 @@ export async function updateSettings(input: UpdateSettingsInput, actorId: string
   if (input.stations) set['stations'] = input.stations;
   if (input.allowance?.INTERNSHIP !== undefined) set['allowance.INTERNSHIP'] = input.allowance.INTERNSHIP;
   if (input.allowance?.NYSC_IT !== undefined) set['allowance.NYSC_IT'] = input.allowance.NYSC_IT;
-  if (input.faceCheck?.enabled !== undefined) set['faceCheck.enabled'] = input.faceCheck.enabled;
   if (input.faceCheck?.threshold !== undefined) set['faceCheck.threshold'] = input.faceCheck.threshold;
   for (const type of ['INTERNSHIP', 'NYSC_IT'] as const) {
     const rule = input.stipend?.[type];
