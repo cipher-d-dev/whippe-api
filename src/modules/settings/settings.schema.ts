@@ -33,6 +33,7 @@ export const updateSettingsSchema = z.object({
         })
         .strict()
         .optional(),
+      lateAfter: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Use a time like 10:00').optional(),
       stipend: z
         .object({ INTERNSHIP: stipendRule.optional(), NYSC_IT: stipendRule.optional() })
         .strict()

@@ -4,6 +4,7 @@ jest.mock('../../src/modules/attendance/attendance.model', () => ({
 }));
 jest.mock('../../src/modules/face/face.service', () => ({ evaluateCheckInFace: jest.fn(async () => ({ flagReasons: [] })) }));
 jest.mock('../../src/modules/notifications/notification.service', () => ({ notifyAllHR: jest.fn(async () => undefined) }));
+jest.mock('../../src/modules/settings/settings.service', () => ({ getSettings: jest.fn(async () => ({ lateAfter: '10:00' })) }));
 
 import mongoose from 'mongoose';
 import { Intern } from '../../src/modules/interns/intern.model';

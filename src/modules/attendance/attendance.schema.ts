@@ -42,6 +42,7 @@ export const listAttendanceSchema = z.object({
     intern: z.string().optional(),
     status: z.string().optional(),
     checkType: z.string().optional(),
+    late: z.enum(['true', 'false']).optional(),
     date: z.string().optional(),
     from: z.coerce.date().optional(),
     to: z.coerce.date().optional(),

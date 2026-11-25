@@ -40,6 +40,8 @@ export interface StipendRow {
   daysWorked: number;
   flaggedDays: number;
   rejectedDays: number;
+  /** Days checked in after the late time. Already counted in daysWorked/flaggedDays. */
+  lateDays: number;
   fullAmount: number;
   suggestedAmount: number;
 }
@@ -166,12 +168,18 @@ export async function getStipendReport(query: { from?: string; to?: string }, no
     checkType: CheckType.CHECK_IN,
     date: { $gte: from, $lte: to },
   })
-    .select('intern date status')
+    .select('intern date status isLate')
     .lean();
 
   const byIntern = new Map<string, { date: Date; status: AttendanceStatus }[]>();
+  const lateByIntern = new Map<string, Set<string>>();
   for (const a of attendance) {
     const k = String(a.intern);
+    if (a.isLate && a.status !== AttendanceStatus.REJECTED) {
+      const s = lateByIntern.get(k) ?? new Set<string>();
+      s.add(isoDay(dayKey(new Date(a.date))));
+      lateByIntern.set(k, s);
+    }
     const list = byIntern.get(k) ?? [];
     list.push({ date: a.date, status: a.status as AttendanceStatus });
     byIntern.set(k, list);
@@ -199,6 +207,7 @@ export async function getStipendReport(query: { from?: string; to?: string }, no
       daysWorked: worked,
       flaggedDays: flagged,
       rejectedDays: rejected,
+      lateDays: lateByIntern.get(String(i._id))?.size ?? 0,
       fullAmount: rule.amount,
       suggestedAmount: suggestedAmount(rule, worked, expected),
     };
