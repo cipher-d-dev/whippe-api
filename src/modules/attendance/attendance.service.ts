@@ -6,6 +6,7 @@ import { checkGeofence } from '../../lib/geofence';
 import { createError } from '../../middleware/error-handler';
 import { evaluateCheckInFace, CheckInFaceResult } from '../face/face.service';
 import { env } from '../../config/env';
+import { getSettings } from '../settings/settings.service';
 import {
   CheckInInput,
   CorrectAttendanceInput,
@@ -28,6 +29,17 @@ function toDateOnly(d: Date): Date {
  * the app asks them to confirm instead.
  */
 export const MIN_SECONDS_BEFORE_CHECKOUT = 60;
+
+/** Lagos is UTC+1 all year (no daylight saving). */
+const LAGOS_OFFSET_MINUTES = 60;
+
+/** True when `at` is after `lateAfter` ("HH:MM", Lagos time) on its day. 10:00 → 10:00:59 is on time, 10:01 is late. */
+export function isLateCheckIn(at: Date, lateAfter: string): boolean {
+  const [h, m] = lateAfter.split(':').map(Number);
+  const lagos = new Date(at.getTime() + LAGOS_OFFSET_MINUTES * 60_000);
+  const minutes = lagos.getUTCHours() * 60 + lagos.getUTCMinutes();
+  return minutes > h * 60 + m;
+}
 
 export const POOR_ACCURACY_THRESHOLD_METERS = 50; // flag if accuracy > 50m
 
@@ -118,7 +130,10 @@ export async function checkIn(
   // ── Face check and shared phone (check-in only) ───────────────────────────
   let face: CheckInFaceResult = { flagReasons: [] };
   let otherOnSamePhone: IAttendanceDocument[] = [];
+  let isLate: boolean | undefined;
   if (input.checkType === CheckType.CHECK_IN) {
+    // Late is a separate label, not a flag: the day still counts.
+    isLate = isLateCheckIn(now, (await getSettings()).lateAfter) || undefined;
     face = await evaluateCheckInFace(intern._id as mongoose.Types.ObjectId, input.face);
     flagReasons.push(...face.flagReasons);
 
@@ -159,6 +174,7 @@ export async function checkIn(
     ipAddress,
     userAgent,
     flagReasons: flagReasons.length > 0 ? flagReasons : undefined,
+    isLate,
     selfieKey: face.selfieKey,
     faceScore: face.faceScore,
     livenessPassed: face.livenessPassed,
@@ -191,7 +207,7 @@ export async function checkIn(
 export async function listAttendance(
   query: ListAttendanceQuery,
 ): Promise<PaginatedResponse<IAttendanceDocument>> {
-  const { page, limit, intern, status, checkType, date, from, to } = query;
+  const { page, limit, intern, status, checkType, late, date, from, to } = query;
   const skip = (page - 1) * limit;
 
   const filter: Record<string, unknown> = {};
@@ -201,6 +217,8 @@ export async function listAttendance(
   }
   if (status) filter['status'] = status;
   if (checkType) filter['checkType'] = checkType;
+  if (late === 'true') filter['isLate'] = true;
+  if (late === 'false') filter['isLate'] = { $ne: true };
 
   if (date) {
     // If a specific date is requested (e.g. "2026-11-10"), match the start-of-day UTC

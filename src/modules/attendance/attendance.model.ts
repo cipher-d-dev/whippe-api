@@ -21,6 +21,8 @@ export interface IAttendance {
   ipAddress?: string;
   userAgent?: string;
   flagReasons?: string[];            // e.g. ['OUTSIDE_GEOFENCE', 'POOR_ACCURACY']
+  /** Check-in after the late time in settings. A label only: doesn't change status or stipend. */
+  isLate?: boolean;
 
   // Face check (see modules/face)
   selfieKey?: string;                // private file in Appwrite; served to HR via the API only
@@ -62,6 +64,7 @@ const attendanceSchema = new Schema<IAttendanceDocument, IAttendanceModel>(
     ipAddress: { type: String, select: false },
     userAgent: { type: String, select: false },
     flagReasons: [{ type: String }],
+    isLate: { type: Boolean },
 
     selfieKey: { type: String },
     faceScore: Number,

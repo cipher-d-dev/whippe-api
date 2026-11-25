@@ -20,6 +20,8 @@ export interface ISettings {
   faceCheck?: { enabled?: boolean; threshold?: number };
   /** Who is on payroll by default, per type (HR can override per intern). */
   allowance?: { INTERNSHIP?: boolean; NYSC_IT?: boolean };
+  /** Check-ins after this Lagos time ("HH:MM") are marked Late. */
+  lateAfter?: string;
   updatedBy?: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
@@ -41,6 +43,7 @@ const settingsSchema = new Schema<ISettingsDocument>(
     },
     faceCheck: { enabled: Boolean, threshold: Number },
     allowance: { INTERNSHIP: Boolean, NYSC_IT: Boolean },
+    lateAfter: { type: String },
     updatedBy: { type: Schema.Types.ObjectId, ref: 'User' },
   },
   { timestamps: true },

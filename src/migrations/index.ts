@@ -1,6 +1,7 @@
 import { env } from '../config/env';
 import { Migration } from './migration.model';
 import * as roster2026Nov from './2026-11-roster';
+import * as supervisorReinvite2026Nov from './2026-11-supervisor-reinvite';
 
 /**
  * One-time data updates, run in order when the API starts.
@@ -12,7 +13,7 @@ import * as roster2026Nov from './2026-11-roster';
  * - Not until ADMIN_URL is set, so invitation links can't point at the wrong app.
  * - A failure is logged and retried on the next start; the API still starts.
  */
-const MIGRATIONS = [roster2026Nov];
+const MIGRATIONS = [roster2026Nov, supervisorReinvite2026Nov];
 
 export async function runMigrations(): Promise<void> {
   const enabled = env.NODE_ENV === 'production' || process.env['RUN_MIGRATIONS'] === 'true';

@@ -18,6 +18,11 @@ export interface AppSettings {
   faceCheck: { enabled: boolean; threshold: number };
   /** On payroll by default, per type. HR said SIWES/IT students are not on payroll. */
   allowance: { INTERNSHIP: boolean; NYSC_IT: boolean };
+  /**
+   * Lagos time ("HH:MM") after which a check-in is marked Late. Late is only a
+   * label for HR: the day still counts for the stipend.
+   */
+  lateAfter: string;
   updatedAt: string | null;
 }
 
@@ -34,6 +39,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   // Face check is mandatory for every intern (DAAR HR's decision), so it can't be switched off.
   faceCheck: { enabled: true, threshold: 0.35 },
   allowance: { INTERNSHIP: false, NYSC_IT: true },
+  lateAfter: '10:00', // HR: 10:01am onwards is late
   updatedAt: null,
 };
 
@@ -63,6 +69,7 @@ export async function getSettings(): Promise<AppSettings> {
       enabled: true, // mandatory; any old stored 'off' is ignored
       threshold: doc?.faceCheck?.threshold ?? DEFAULT_SETTINGS.faceCheck.threshold,
     },
+    lateAfter: doc?.lateAfter || DEFAULT_SETTINGS.lateAfter,
     updatedAt: doc?.updatedAt ? new Date(doc.updatedAt).toISOString() : null,
   };
 }
@@ -74,6 +81,7 @@ export async function updateSettings(input: UpdateSettingsInput, actorId: string
   if (input.stations) set['stations'] = input.stations;
   if (input.allowance?.INTERNSHIP !== undefined) set['allowance.INTERNSHIP'] = input.allowance.INTERNSHIP;
   if (input.allowance?.NYSC_IT !== undefined) set['allowance.NYSC_IT'] = input.allowance.NYSC_IT;
+  if (input.lateAfter) set['lateAfter'] = input.lateAfter;
   if (input.faceCheck?.threshold !== undefined) set['faceCheck.threshold'] = input.faceCheck.threshold;
   for (const type of ['INTERNSHIP', 'NYSC_IT'] as const) {
     const rule = input.stipend?.[type];
