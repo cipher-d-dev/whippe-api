@@ -547,3 +547,68 @@ export function renderHrInviteEmail(input: HrInviteEmailInput): RenderedEmail {
 
   return { subject, html, text };
 }
+
+// ─── Supervisor re-invitation ─────────────────────────────────────────────────
+// Sent once to every supervisor after many tried to "sign up" instead of
+// signing in. Deliberately plain: three numbered steps, the details in a box.
+
+export interface SupervisorReinviteEmailInput {
+  firstName: string;
+  email: string;
+  temporaryPassword: string;
+  loginUrl: string;
+  departments: string[];
+}
+
+export function renderSupervisorReinviteEmail(input: SupervisorReinviteEmailInput): RenderedEmail {
+  const subject = `Please accept your invitation to ${BRAND}`;
+  const depts = input.departments.length ? input.departments.join(', ') : '';
+
+  const details = [
+    `Sign-in page: <strong>${esc(input.loginUrl)}</strong>`,
+    `Email: <strong>${esc(input.email)}</strong>`,
+    `Temporary password: <strong style="font-family: monospace; font-size: 15px; letter-spacing: 0.05em;">${esc(input.temporaryPassword)}</strong>`,
+  ];
+  if (depts) details.push(`Your department${input.departments.length > 1 ? 's' : ''}: <strong>${esc(depts)}</strong>`);
+
+  const html = wrap({
+    preheader: `HR has invited you to ${BRAND} as a supervisor. Your account is ready: just sign in.`,
+    badgeText: 'Invitation',
+    badgeBg: '#EEF2FF',
+    badgeColor: COLOR_PRIMARY,
+    headingHtml: heading('Please accept your invitation'),
+    bodyHtml: `
+      ${bodyText(`Hi ${esc(input.firstName)}, HR at ${COMPANY_NAME} has invited you to ${BRAND} as a supervisor for interns and corps members.`)}
+      ${bodyText(`${highlight('Your account is already set up. You do not need to sign up or create an account.')} To accept:`)}
+      ${bodyText(`1. Press the ${highlight('Accept invitation')} button below.<br>2. Type your email and the temporary password shown here.<br>3. Once you are in, change the password under your profile.`)}
+      ${infoCard(details, '#C7D2FE', '#EEF2FF')}
+      ${bodyText(`<em>This replaces any earlier ${BRAND} password you were sent. If the button doesn't work, copy the sign-in page address into your browser.</em>`)}
+    `,
+    ctaLabel: 'Accept invitation',
+    ctaUrl: input.loginUrl,
+    footerNote: `You received this because HR at ${COMPANY_NAME} added you as a supervisor on ${BRAND}. Questions? Contact HR.`,
+  });
+
+  const text = [
+    `Hi ${input.firstName},`,
+    '',
+    `HR at ${COMPANY_NAME} has invited you to ${BRAND} as a supervisor.`,
+    'Your account is already set up. You do not need to sign up or create an account.',
+    '',
+    `1. Open ${input.loginUrl}`,
+    '2. Type your email and the temporary password below.',
+    '3. Once you are in, change the password under your profile.',
+    '',
+    `Email: ${input.email}`,
+    `Temporary password: ${input.temporaryPassword}`,
+    depts ? `Department(s): ${depts}` : '',
+    '',
+    `This replaces any earlier ${BRAND} password you were sent.`,
+    '',
+    `© ${new Date().getFullYear()} ${BRAND} · ${COMPANY_NAME}`,
+  ]
+    .filter((l, i, a) => l !== '' || a[i - 1] !== '')
+    .join('\n');
+
+  return { subject, html, text };
+}

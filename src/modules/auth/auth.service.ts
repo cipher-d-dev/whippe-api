@@ -53,6 +53,12 @@ function issueTokens(userId: string, role: Role, status: AccountStatus, authMeth
 export async function signup(input: SignupInput) {
   const existing = await User.findOne({ email: input.email });
   if (existing) {
+    if (existing.role === Role.SUPERVISOR || existing.role === Role.HR) {
+      throw createError(
+        "HR has already made a staff account for this email, so there's no need to sign up. Sign in with the temporary password from your invitation email (or use Forgot password).",
+        409,
+      );
+    }
     throw createError('An account with this email already exists.', 409);
   }
 
