@@ -10,6 +10,8 @@ import { Supervisor } from '../supervisors/supervisor.model';
 import { InternshipStatus } from '../interns/intern.types';
 import { AccountStatus, Role } from '../auth/auth.types';
 import { sendPushToUser } from '../notifications/push.service';
+import { notifyAllHR } from '../notifications/notification.service';
+import { NotificationType } from '../notifications/notification.types';
 import { createError } from '../../middleware/error-handler';
 import { uploadPrivateFile, downloadFile, deleteFile } from '../../lib/appwrite';
 import { sendEmail } from '../../lib/email';
@@ -50,11 +52,18 @@ async function audience(conv: IConversationDocument): Promise<string[]> {
   return conv.kind === ConversationKind.INTERN_HR ? [...new Set([...members, ...(await hrUserIds())])] : members;
 }
 
+const isMember = (conv: IConversationDocument, userId: string) => conv.members.some((m) => same(m, userId));
+
 function canSee(conv: IConversationDocument, user: ChatUser): boolean {
-  const member = conv.members.some((m) => same(m, user.id));
+  const member = isMember(conv, user.id);
   if (conv.kind === ConversationKind.INTERN_HR) return user.role === Role.HR || (user.role === Role.INTERN && member);
+  // Interns' private chats: HR can read one only after an intern reports it.
+  if (conv.kind === ConversationKind.INTERN_DM) return member || (user.role === Role.HR && (conv.reports?.length ?? 0) > 0);
   return member;
 }
+
+/** HR reading a reported intern chat leaves no trace (no read ticks, no typing). */
+const isOnlyLooking = (conv: IConversationDocument, user: ChatUser) => conv.kind === ConversationKind.INTERN_DM && !isMember(conv, user.id);
 
 async function loadConversation(id: string, user: ChatUser): Promise<IConversationDocument> {
   const conv = await Conversation.findById(id);
@@ -91,7 +100,7 @@ function otherSide(conv: IConversationDocument, user: ChatUser, hrIds: string[])
       return conv.members.some((m) => same(m, s.user)); // HR sees the intern's marks
     }
     if (conv.kind === ConversationKind.INTERN_HR) return hrIds.includes(String(s.user));
-    return true;
+    return conv.members.some((m) => same(m, s.user));
   });
   const max = (k: 'readAt' | 'deliveredAt') =>
     others.reduce<Date | null>((m, s) => (s[k] && (!m || s[k]! > m) ? s[k]! : m), null);
@@ -155,6 +164,13 @@ async function counterparts(convs: IConversationDocument[], user: ChatUser) {
   const otherIds = convs.flatMap((c) => c.members.filter((m) => !same(m, user.id)));
   const users = await User.find({ _id: { $in: otherIds } }).select('firstName lastName role lastSeenAt avatarUrl').lean();
   const userById = new Map(users.map((u) => [String(u._id), u]));
+  // Interns in intern-to-intern chats, by their login
+  const dmUserIds = convs.filter((c) => c.kind === ConversationKind.INTERN_DM).flatMap((c) => c.members);
+  const dmInterns = dmUserIds.length
+    ? await Intern.find({ user: { $in: dmUserIds } }).select('firstName lastName department user').populate('department', 'name').lean()
+    : [];
+  const internByUser = new Map(dmInterns.map((i) => [String(i.user), i]));
+  const deptOf = (i?: { department?: unknown } | null) => (i?.department as { name?: string } | null | undefined)?.name ?? null;
 
   let hrLastSeen: Date | null = null;
   if (user.role === Role.INTERN) {
@@ -177,6 +193,24 @@ async function counterparts(convs: IConversationDocument[], user: ChatUser) {
         lastSeenAt: u?.lastSeenAt ?? null,
       };
     }
+    if (c.kind === ConversationKind.INTERN_DM) {
+      if (!isMember(c, user.id)) {
+        // HR looking at a reported chat: show both interns
+        const [a, b] = c.members.map((m) => internByUser.get(String(m)));
+        return { kind: 'INTERN_PAIR' as const, name: `${fullName(a)} & ${fullName(b)}`, subtitle: 'Reported private chat', lastSeenAt: null };
+      }
+      const otherId = c.members.find((m) => !same(m, user.id));
+      const u = userById.get(String(otherId));
+      const i = internByUser.get(String(otherId));
+      return {
+        kind: 'INTERN_PERSON' as const,
+        userId: String(otherId),
+        internId: i ? String(i._id) : undefined,
+        name: i ? fullName(i) : fullName(u),
+        subtitle: deptOf(i),
+        lastSeenAt: u?.lastSeenAt ?? null,
+      };
+    }
     const otherId = c.members.find((m) => !same(m, user.id));
     const u = userById.get(String(otherId));
     return {
@@ -190,6 +224,7 @@ async function counterparts(convs: IConversationDocument[], user: ChatUser) {
 }
 
 async function unreadCount(conv: IConversationDocument, userId: string): Promise<number> {
+  if (conv.kind === ConversationKind.INTERN_DM && !isMember(conv, userId)) return 0;
   const readAt = stateOf(conv, userId)?.readAt;
   if (!conv.lastMessageAt || (readAt && readAt >= conv.lastMessageAt)) return 0;
   if (conv.lastMessage && same(conv.lastMessage.sender, userId)) return 0; // I spoke last, so I've seen it
@@ -204,6 +239,8 @@ async function unreadCount(conv: IConversationDocument, userId: string): Promise
 async function conversationView(conv: IConversationDocument, user: ChatUser, who: Awaited<ReturnType<typeof counterparts>>, hrIds: string[], names: NameMap) {
   const lm = conv.lastMessage;
   const other = otherSide(conv, user, hrIds);
+  const blockedBy = (conv.blockedBy ?? []).map(String);
+  const reports = conv.reports ?? [];
   return {
     id: String(conv._id),
     kind: conv.kind,
@@ -216,6 +253,15 @@ async function conversationView(conv: IConversationDocument, user: ChatUser, who
     myReadAt: stateOf(conv, user.id)?.readAt ?? null,
     otherReadAt: other.readAt,
     otherDeliveredAt: other.deliveredAt,
+    /** Intern-to-intern chats: who has blocked whom, from my side. */
+    blocked: { byMe: blockedBy.includes(user.id), byThem: blockedBy.some((b) => b !== user.id) },
+    /** True when I can send (false for HR reading a reported chat, or when blocked). */
+    canSend: !isOnlyLooking(conv, user) && blockedBy.length === 0,
+    /** Reports, shown to HR only. */
+    reports: user.role === Role.HR && reports.length
+      ? reports.map((r) => ({ byId: String(r.by), byName: names.get(String(r.by))?.name ?? 'An intern', at: r.at, reason: r.reason, messageId: r.message ? String(r.message) : null }))
+      : [],
+    reportResolvedAt: user.role === Role.HR ? conv.reportResolvedAt ?? null : null,
     createdAt: conv.createdAt,
   };
 }
@@ -224,7 +270,7 @@ async function viewsOf(convs: IConversationDocument[], user: ChatUser) {
   const [who, hrIds, names] = await Promise.all([
     counterparts(convs, user),
     hrUserIds(),
-    namesFor(convs.map((c) => c.lastMessage?.sender)),
+    namesFor(convs.flatMap((c) => [c.lastMessage?.sender, ...(c.reports ?? []).map((r) => r.by)])),
   ]);
   return Promise.all(convs.map((c) => conversationView(c, user, who, hrIds, names)));
 }
@@ -232,8 +278,16 @@ async function viewsOf(convs: IConversationDocument[], user: ChatUser) {
 // ─── Conversations ───────────────────────────────────────────────────────────
 
 function scopeFilter(user: ChatUser): Record<string, unknown> {
-  if (user.role === Role.INTERN) return { kind: ConversationKind.INTERN_HR, members: oid(user.id) };
-  if (user.role === Role.HR) return { $or: [{ kind: ConversationKind.INTERN_HR }, { kind: ConversationKind.STAFF_DM, members: oid(user.id) }] };
+  if (user.role === Role.INTERN) return { kind: { $in: [ConversationKind.INTERN_HR, ConversationKind.INTERN_DM] }, members: oid(user.id) };
+  if (user.role === Role.HR) {
+    return {
+      $or: [
+        { kind: ConversationKind.INTERN_HR },
+        { kind: ConversationKind.STAFF_DM, members: oid(user.id) },
+        { kind: ConversationKind.INTERN_DM, 'reports.0': { $exists: true } },
+      ],
+    };
+  }
   return { kind: ConversationKind.STAFF_DM, members: oid(user.id) };
 }
 
@@ -255,7 +309,20 @@ async function upsertConversation(filter: Record<string, unknown>, insert: Recor
 export async function openConversation(user: ChatUser, body: { internId?: string; userId?: string }) {
   let conv: IConversationDocument | null = null;
 
-  if (user.role === Role.INTERN) {
+  if (user.role === Role.INTERN && body.userId) {
+    // Another intern, privately
+    if (same(body.userId, user.id)) throw createError("You can't message yourself.", 400);
+    const other = await Intern.findOne({
+      user: oid(body.userId),
+      status: { $in: [InternshipStatus.ACTIVE, InternshipStatus.ONBOARDING] },
+    }).select('_id');
+    if (!other) throw createError('You can only message interns who are currently on the programme.', 404);
+    const dmKey = [user.id, body.userId].map(String).sort().join(':');
+    conv = await upsertConversation(
+      { kind: ConversationKind.INTERN_DM, dmKey },
+      { kind: ConversationKind.INTERN_DM, dmKey, members: [oid(user.id), oid(body.userId)], states: [], blockedBy: [], reports: [] },
+    );
+  } else if (user.role === Role.INTERN) {
     const intern = await Intern.findOne({ user: oid(user.id) }).select('_id');
     if (!intern) throw createError('No intern record found for this account.', 404);
     conv = await upsertConversation(
@@ -297,7 +364,7 @@ export async function listConversations(user: ChatUser, q: { search?: string; ki
   const convs = await Conversation.find(filter).sort({ lastMessageAt: -1, updatedAt: -1 }).limit(q.limit);
   let views = await viewsOf(convs, user);
   // HR's intern list only shows chats with messages, so it isn't padded with empty rows.
-  views = views.filter((v) => v.lastMessage || v.kind === ConversationKind.STAFF_DM || user.role === Role.INTERN);
+  views = views.filter((v) => v.lastMessage || v.kind === ConversationKind.STAFF_DM || (user.role === Role.INTERN && v.kind === ConversationKind.INTERN_HR));
   if (q.search) {
     const s = q.search.toLowerCase();
     views = views.filter((v) => v.with.name.toLowerCase().includes(s) || (v.with.subtitle ?? '').toLowerCase().includes(s));
@@ -355,7 +422,24 @@ export async function listContacts(user: ChatUser) {
     const hr = await User.find({ role: Role.HR, status: AccountStatus.ACTIVE }).select('firstName lastName').sort({ firstName: 1 }).lean();
     return { interns: [], people: hr.map((h) => ({ userId: String(h._id), name: fullName(h), subtitle: 'HR', role: Role.HR })) };
   }
-  return { interns: [], people: [] };
+  // Interns: anyone else currently on the programme
+  const others = await Intern.find({
+    status: { $in: [InternshipStatus.ACTIVE, InternshipStatus.ONBOARDING] },
+    user: { $exists: true, $ne: oid(user.id) },
+  })
+    .select('firstName lastName department user')
+    .populate('department', 'name')
+    .sort({ firstName: 1, lastName: 1 })
+    .lean();
+  return {
+    interns: [],
+    people: others.filter((i) => i.user).map((i) => ({
+      userId: String(i.user),
+      name: fullName(i),
+      subtitle: (i.department as unknown as { name?: string } | null)?.name ?? 'Intern',
+      role: Role.INTERN,
+    })),
+  };
 }
 
 // ─── Messages ────────────────────────────────────────────────────────────────
@@ -408,7 +492,7 @@ export async function listMessages(
 }
 
 function pushTarget(userRole: Role | string, convId: string) {
-  return userRole === Role.INTERN ? `${appUrlFor(Role.INTERN)}/chat` : `${staffPortalUrl()}/messages?c=${convId}`;
+  return userRole === Role.INTERN ? `${appUrlFor(Role.INTERN)}/chat?c=${convId}` : `${staffPortalUrl()}/messages?c=${convId}`;
 }
 
 async function notifyNewMessage(conv: IConversationDocument, msg: IMessageDocument, sender: { name: string; role: string }) {
@@ -424,8 +508,16 @@ async function notifyNewMessage(conv: IConversationDocument, msg: IMessageDocume
   );
 }
 
+function assertCanSend(conv: IConversationDocument, user: ChatUser) {
+  if (isOnlyLooking(conv, user)) throw createError('This is a reported private chat. You can read it, but not send messages in it.', 403);
+  const blockedBy = (conv.blockedBy ?? []).map(String);
+  if (blockedBy.includes(user.id)) throw createError('You blocked this person. Unblock them to send messages.', 403);
+  if (blockedBy.length) throw createError("You can't send messages in this chat.", 403);
+}
+
 export async function sendMessage(user: ChatUser, id: string, input: SendMessageInput) {
   const conv = await loadConversation(id, user);
+  assertCanSend(conv, user);
 
   if (input.clientId) {
     const dup = await Message.findOne({ conversation: conv._id, sender: oid(user.id), clientId: input.clientId });
@@ -529,6 +621,7 @@ async function publishState(conv: IConversationDocument, userId: string) {
 
 export async function markRead(user: ChatUser, id: string) {
   const conv = await loadConversation(id, user);
+  if (isOnlyLooking(conv, user)) return { readAt: null };
   const upTo = conv.lastMessageAt ?? new Date();
   const before = stateOf(conv, user.id)?.readAt;
   if (before && before >= upTo) return { readAt: before };
@@ -543,6 +636,7 @@ export async function markDelivered(user: ChatUser) {
   const convs = await Conversation.find({ ...scopeFilter(user), lastMessageAt: { $exists: true } });
   let changed = 0;
   for (const c of convs) {
+    if (isOnlyLooking(c, user)) continue;
     const s = stateOf(c, user.id);
     if (c.lastMessage && same(c.lastMessage.sender, user.id)) continue;
     if (s?.deliveredAt && s.deliveredAt >= c.lastMessageAt!) continue;
@@ -556,9 +650,80 @@ export async function markDelivered(user: ChatUser) {
 
 export async function typing(user: ChatUser, id: string) {
   const conv = await loadConversation(id, user);
+  if (isOnlyLooking(conv, user) || (conv.blockedBy?.length ?? 0) > 0) return;
   const me = (await namesFor([user.id])).get(user.id);
   const to = (await audience(conv)).filter((u) => !same(u, user.id));
   void publishToUsers(to, { name: 'typing', data: { conversationId: id, userId: user.id, name: me?.name ?? 'Someone' } });
+}
+
+// ─── Intern-to-intern: block, report ─────────────────────────────────────────
+
+async function ownInternDm(user: ChatUser, id: string) {
+  const conv = await loadConversation(id, user);
+  if (conv.kind !== ConversationKind.INTERN_DM || !isMember(conv, user.id)) {
+    throw createError('You can only block or report private chats with other interns.', 400);
+  }
+  return conv;
+}
+
+async function announceChange(conv: IConversationDocument) {
+  void publishToUsers(await audience(conv), { name: 'conversation', data: { conversationId: String(conv._id) } });
+}
+
+export async function setBlocked(user: ChatUser, id: string, blocked: boolean) {
+  const conv = await ownInternDm(user, id);
+  const others = (conv.blockedBy ?? []).filter((b) => !same(b, user.id));
+  conv.blockedBy = blocked ? [...others, oid(user.id)] : others;
+  conv.markModified('blockedBy');
+  await conv.save();
+  await announceChange(conv);
+  const [view] = await viewsOf([conv], user);
+  return view;
+}
+
+/**
+ * Reports a private chat (optionally pointing at one message). From then on HR
+ * can read the chat, but not write in it. Optionally blocks the other intern.
+ */
+export async function reportConversation(user: ChatUser, id: string, input: { reason: string; messageId?: string; block?: boolean }) {
+  const conv = await ownInternDm(user, id);
+  if (input.messageId) {
+    const m = await Message.findOne({ _id: oid(input.messageId), conversation: conv._id });
+    if (!m) throw createError("That message isn't in this chat.", 404);
+    if (same(m.sender, user.id)) throw createError("You can't report your own message.", 400);
+  }
+  conv.reports = [...(conv.reports ?? []), { by: oid(user.id), at: new Date(), message: input.messageId ? oid(input.messageId) : undefined, reason: input.reason.trim() }];
+  conv.reportResolvedAt = undefined;
+  conv.reportResolvedBy = undefined;
+  conv.markModified('reports');
+  if (input.block && !(conv.blockedBy ?? []).some((b) => same(b, user.id))) {
+    conv.blockedBy = [...(conv.blockedBy ?? []), oid(user.id)];
+    conv.markModified('blockedBy');
+  }
+  await conv.save();
+
+  const reporter = (await namesFor([user.id])).get(user.id)?.name ?? 'An intern';
+  notifyAllHR(
+    NotificationType.CHAT_REPORTED,
+    'A private chat was reported',
+    `${reporter} reported a chat with another intern: "${input.reason.trim().slice(0, 120)}"`,
+    { kind: 'Conversation', id: String(conv._id) },
+  ).catch(() => undefined);
+  await announceChange(conv);
+  const [view] = await viewsOf([conv], user);
+  return view;
+}
+
+/** HR marks a reported chat as reviewed. It stays readable to HR. */
+export async function resolveReport(user: ChatUser, id: string) {
+  if (user.role !== Role.HR) throw createError('Only HR can review reports.', 403);
+  const conv = await loadConversation(id, user);
+  if (conv.kind !== ConversationKind.INTERN_DM || !(conv.reports?.length)) throw createError('This chat has no reports.', 400);
+  conv.reportResolvedAt = new Date();
+  conv.reportResolvedBy = oid(user.id);
+  await conv.save();
+  const [view] = await viewsOf([conv], user);
+  return view;
 }
 
 const lastSeenWrites = new Map<string, number>();
@@ -609,9 +774,15 @@ export async function getAttachment(user: ChatUser, messageId: string, index: nu
 export async function deleteExpiredChats(now = new Date()): Promise<number> {
   let removed = 0;
   const cutoff = new Date(now.getTime() - CHAT_RETENTION_DAYS * 86_400_000);
-  const done = await Intern.find({ status: InternshipStatus.COMPLETED, completedAt: { $lte: cutoff } }).select('_id').lean();
+  const done = await Intern.find({ status: InternshipStatus.COMPLETED, completedAt: { $lte: cutoff } }).select('_id user').lean();
   if (done.length) {
-    const convs = await Conversation.find({ kind: ConversationKind.INTERN_HR, intern: { $in: done.map((d) => d._id) } });
+    // Their HR chats, and private chats with other interns (gone once either of the two has finished)
+    const convs = await Conversation.find({
+      $or: [
+        { kind: ConversationKind.INTERN_HR, intern: { $in: done.map((d) => d._id) } },
+        { kind: ConversationKind.INTERN_DM, members: { $in: done.map((d) => d.user).filter(Boolean) } },
+      ],
+    });
     for (const c of convs) {
       const withFiles = await Message.find({ conversation: c._id, 'attachments.0': { $exists: true } }).select('attachments');
       for (const m of withFiles) for (const a of m.attachments) await deleteFile(a.key).catch(() => undefined);
@@ -639,7 +810,7 @@ export async function sendUnreadNudges(now = new Date()): Promise<number> {
   });
   let sent = 0;
   for (const c of convs) {
-    if (!c.lastMessage || c.lastMessage.deleted) continue;
+    if (!c.lastMessage || c.lastMessage.deleted || (c.blockedBy?.length ?? 0) > 0) continue;
     const recipients = c.members.filter((m) => !same(m, c.lastMessage!.sender)).map(String);
     for (const r of recipients) {
       const s = stateOf(c, r);

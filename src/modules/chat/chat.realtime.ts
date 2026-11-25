@@ -39,7 +39,8 @@ export async function createTokenRequest(userId: string) {
 export type ChatEvent =
   | { name: 'message'; data: unknown }        // new, edited or deleted message
   | { name: 'state'; data: unknown }          // someone read / received messages
-  | { name: 'typing'; data: unknown };
+  | { name: 'typing'; data: unknown }
+  | { name: 'conversation'; data: unknown };   // blocked, unblocked or reported: refetch it
 
 /** Sends an event to each user. Never throws: a failed live update is caught up by the next fetch. */
 export async function publishToUsers(userIds: string[], event: ChatEvent): Promise<void> {

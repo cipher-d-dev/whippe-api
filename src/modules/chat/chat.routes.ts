@@ -4,7 +4,7 @@ import * as chat from './chat.service';
 import { createTokenRequest, realtimeEnabled } from './chat.realtime';
 import {
   attachmentSchema, conversationIdSchema, editMessageSchema, listConversationsSchema, listMessagesSchema,
-  messageIdSchema, openConversationSchema, sendMessageSchema, uploadQuerySchema,
+  messageIdSchema, openConversationSchema, reportSchema, sendMessageSchema, uploadQuerySchema,
 } from './chat.schema';
 
 const router = Router();
@@ -71,6 +71,27 @@ router.post('/conversations/:id/typing', wrap(async (req, res) => {
   const { params } = conversationIdSchema.parse({ params: req.params });
   await chat.typing(me(req), params.id);
   res.json({ success: true });
+}));
+
+// Intern-to-intern chats: block, unblock, report; HR reviews reports.
+router.post('/conversations/:id/block', wrap(async (req, res) => {
+  const { params } = conversationIdSchema.parse({ params: req.params });
+  res.json({ success: true, data: { conversation: await chat.setBlocked(me(req), params.id, true) } });
+}));
+
+router.delete('/conversations/:id/block', wrap(async (req, res) => {
+  const { params } = conversationIdSchema.parse({ params: req.params });
+  res.json({ success: true, data: { conversation: await chat.setBlocked(me(req), params.id, false) } });
+}));
+
+router.post('/conversations/:id/report', wrap(async (req, res) => {
+  const { params, body } = reportSchema.parse({ params: req.params, body: req.body });
+  res.json({ success: true, data: { conversation: await chat.reportConversation(me(req), params.id, body) } });
+}));
+
+router.post('/conversations/:id/report/resolve', wrap(async (req, res) => {
+  const { params } = conversationIdSchema.parse({ params: req.params });
+  res.json({ success: true, data: { conversation: await chat.resolveReport(me(req), params.id) } });
 }));
 
 router.patch('/messages/:messageId', wrap(async (req, res) => {

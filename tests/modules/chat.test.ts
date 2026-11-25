@@ -31,6 +31,7 @@ jest.mock('../../src/lib/appwrite', () => ({
 jest.mock('../../src/lib/email', () => ({ sendEmail: jest.fn(async () => true) }));
 jest.mock('../../src/lib/urls', () => ({ staffPortalUrl: () => 'https://staff.test', appUrlFor: () => 'https://app.test' }));
 jest.mock('../../src/modules/chat/chat.realtime', () => ({ publishToUsers: jest.fn(async () => undefined) }));
+jest.mock('../../src/modules/notifications/notification.service', () => ({ notifyAllHR: jest.fn(async () => undefined) }));
 
 import * as chat from '../../src/modules/chat/chat.service';
 import { publishToUsers } from '../../src/modules/chat/chat.realtime';
@@ -75,7 +76,7 @@ describe('chat', () => {
     const s = await chat.listContacts(sup);
     expect(s.interns).toEqual([]);
     expect(s.people.map((p) => p.userId).sort()).toEqual([hr1.id, hr2.id].sort());
-    expect(await chat.listContacts(intern)).toEqual({ interns: [], people: [] });
+    expect((await chat.listContacts(intern)).people.map((p) => p.name)).toEqual(['Chiamaka T']); // other interns only
   });
 
   it('keeps people out of chats that are not theirs', async () => {
@@ -83,7 +84,7 @@ describe('chat', () => {
     await expect(chat.listMessages(sup, convId, { limit: 40 })).rejects.toMatchObject({ statusCode: 404 });
     await expect(chat.openConversation(sup, { internId: String(intern2Rec._id) })).rejects.toMatchObject({ statusCode: 403 });
     await expect(chat.openConversation(sup, { userId: sup2.id })).rejects.toMatchObject({ statusCode: 403 });
-    await expect(chat.openConversation(intern, { userId: hr1.id })).resolves.toMatchObject({ kind: 'INTERN_HR' }); // intern always gets their HR chat
+    await expect(chat.openConversation(intern, { userId: hr1.id })).rejects.toMatchObject({ statusCode: 404 }); // HR is reached through the HR chat
   });
 
   it('sends to the whole HR team, pushes, and counts unread per person', async () => {

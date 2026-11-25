@@ -16,4 +16,5 @@ export enum NotificationType {
   BROADCAST = 'BROADCAST',
   FACE_PHOTO_SUBMITTED = 'FACE_PHOTO_SUBMITTED',   // to HR: a reference photo is waiting for approval
   FACE_PHOTO_REVIEWED = 'FACE_PHOTO_REVIEWED',     // to intern: approved, or retake needed
+  CHAT_REPORTED = 'CHAT_REPORTED',                 // to HR: an intern reported a chat with another intern
 }

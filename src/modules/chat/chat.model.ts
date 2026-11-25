@@ -7,10 +7,20 @@ import mongoose, { Document, Schema } from 'mongoose';
  * - INTERN_HR: one per intern, with the HR team as a whole. Any HR member can
  *   read and reply. `members` holds only the intern's user; HR is implied.
  * - STAFF_DM: one per HR person + supervisor pair. `members` holds both.
+ * - INTERN_DM: one per pair of interns. Private; either can block the other or
+ *   report it, and a reported chat can then be read (not written) by HR.
  */
 export enum ConversationKind {
   INTERN_HR = 'INTERN_HR',
   STAFF_DM = 'STAFF_DM',
+  INTERN_DM = 'INTERN_DM',   // two interns, private to them (HR only sees it if one reports it)
+}
+
+export interface IChatReport {
+  by: mongoose.Types.ObjectId;
+  at: Date;
+  message?: mongoose.Types.ObjectId;
+  reason: string;
 }
 
 /** Per-person progress through a conversation. Ticks and unread counts come from these. */
@@ -33,10 +43,14 @@ export interface IConversation {
   kind: ConversationKind;
   intern?: mongoose.Types.ObjectId;       // INTERN_HR: the Intern record
   members: mongoose.Types.ObjectId[];     // User ids (see above)
-  dmKey?: string;                         // STAFF_DM: sorted "userA:userB", unique
+  dmKey?: string;                         // STAFF_DM / INTERN_DM: sorted "userA:userB", unique
   lastMessage?: ILastMessage;
   lastMessageAt?: Date;
   states: IMemberState[];
+  blockedBy: mongoose.Types.ObjectId[];   // members who have blocked the other
+  reports: IChatReport[];
+  reportResolvedAt?: Date;                // HR marked the latest reports as reviewed
+  reportResolvedBy?: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -65,11 +79,25 @@ const conversationSchema = new Schema<IConversationDocument>(
         nudgedAt: Date,
       },
     ],
+    blockedBy: [{ type: Schema.Types.ObjectId, ref: 'User' }],
+    reports: [
+      {
+        _id: false,
+        by: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+        at: { type: Date, required: true },
+        message: { type: Schema.Types.ObjectId, ref: 'Message' },
+        reason: { type: String, required: true },
+      },
+    ],
+    reportResolvedAt: Date,
+    reportResolvedBy: { type: Schema.Types.ObjectId, ref: 'User' },
   },
   { timestamps: true },
 );
 conversationSchema.index({ intern: 1 }, { unique: true, partialFilterExpression: { kind: ConversationKind.INTERN_HR } });
 conversationSchema.index({ dmKey: 1 }, { unique: true, partialFilterExpression: { kind: ConversationKind.STAFF_DM } });
+conversationSchema.index({ kind: 1, dmKey: 1 }, { unique: true, partialFilterExpression: { kind: ConversationKind.INTERN_DM } });
+conversationSchema.index({ kind: 1, 'reports.0.at': 1 });
 conversationSchema.index({ members: 1, lastMessageAt: -1 });
 conversationSchema.index({ kind: 1, lastMessageAt: -1 });
 
