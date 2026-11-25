@@ -4,7 +4,7 @@ import * as chat from './chat.service';
 import { createTokenRequest, realtimeEnabled } from './chat.realtime';
 import {
   attachmentSchema, conversationIdSchema, editMessageSchema, listConversationsSchema, listMessagesSchema,
-  messageIdSchema, openConversationSchema, reportSchema, sendMessageSchema, uploadQuerySchema,
+  messageIdSchema, muteSchema, openConversationSchema, reactSchema, reportSchema, sendMessageSchema, uploadQuerySchema,
 } from './chat.schema';
 
 const router = Router();
@@ -73,6 +73,21 @@ router.post('/conversations/:id/typing', wrap(async (req, res) => {
   res.json({ success: true });
 }));
 
+router.get('/conversations/:id/info', wrap(async (req, res) => {
+  const { params } = conversationIdSchema.parse({ params: req.params });
+  res.json({ success: true, data: await chat.chatInfo(me(req), params.id) });
+}));
+
+router.post('/conversations/:id/mute', wrap(async (req, res) => {
+  const { params, body } = muteSchema.parse({ params: req.params, body: req.body });
+  res.json({ success: true, data: { conversation: await chat.setMute(me(req), params.id, body.for) } });
+}));
+
+router.post('/messages/:messageId/reactions', wrap(async (req, res) => {
+  const { params, body } = reactSchema.parse({ params: req.params, body: req.body });
+  res.json({ success: true, data: { message: await chat.react(me(req), params.messageId, body.emoji) } });
+}));
+
 // Intern-to-intern chats: block, unblock, report; HR reviews reports.
 router.post('/conversations/:id/block', wrap(async (req, res) => {
   const { params } = conversationIdSchema.parse({ params: req.params });
@@ -121,7 +136,7 @@ router.post(
   wrap(async (req, res) => {
     const { query } = uploadQuerySchema.parse({ query: req.query });
     const body = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0);
-    res.status(201).json({ success: true, data: { upload: await chat.uploadAttachment(me(req), body, query.name) } });
+    res.status(201).json({ success: true, data: { upload: await chat.uploadAttachment(me(req), body, query.name, { kind: query.kind, duration: query.duration }) } });
   }),
 );
 

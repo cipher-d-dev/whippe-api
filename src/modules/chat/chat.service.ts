@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 import {
   Conversation, ConversationKind, IConversationDocument, IMessageDocument, Message, ChatUpload,
 } from './chat.model';
-import { ALLOWED_MIME, MAX_UPLOAD_BYTES, SendMessageInput } from './chat.schema';
+import { ALLOWED_MIME, MAX_UPLOAD_BYTES, SendMessageInput, VOICE_MIME } from './chat.schema';
 import { publishToUsers } from './chat.realtime';
 import { User } from '../users/user.model';
 import { Intern } from '../interns/intern.model';
@@ -117,12 +117,27 @@ async function namesFor(ids: unknown[]): Promise<NameMap> {
   return new Map(users.map((u) => [String(u._id), { name: fullName(u), role: u.role }]));
 }
 
-function preview(m: { text?: string; attachments?: { mime?: string }[] }): string {
+const clockOf = (sec?: number) => (sec === undefined ? '' : ` (${Math.floor(sec / 60)}:${String(Math.round(sec % 60)).padStart(2, '0')})`);
+
+function preview(m: { text?: string; attachments?: { mime?: string; duration?: number }[]; sticker?: string }): string {
+  if (m.sticker) return '✨ Sticker';
   const text = (m.text ?? '').trim();
   if (text) return text.length > 140 ? `${text.slice(0, 140)}…` : text;
   const a = m.attachments?.[0];
   if (!a) return '';
+  if (a.mime?.startsWith('audio/')) return `🎤 Voice message${clockOf(a.duration)}`;
   return a.mime?.startsWith('image/') ? '📷 Photo' : '📄 Document';
+}
+
+/** Reactions grouped by emoji, in the order they were first used. */
+function reactionSummary(reactions: { user: unknown; emoji: string }[] | undefined, names: NameMap) {
+  const groups = new Map<string, { emoji: string; users: { id: string; name: string }[] }>();
+  for (const r of reactions ?? []) {
+    const g = groups.get(r.emoji) ?? { emoji: r.emoji, users: [] };
+    g.users.push({ id: String(r.user), name: names.get(String(r.user))?.name ?? 'Someone' });
+    groups.set(r.emoji, g);
+  }
+  return [...groups.values()];
 }
 
 export function messageView(m: IMessageDocument | Record<string, any>, names: NameMap) {
@@ -133,7 +148,9 @@ export function messageView(m: IMessageDocument | Record<string, any>, names: Na
     conversationId: String(m.conversation),
     sender: { id: String(m.sender), name: sender?.name ?? 'Someone', role: sender?.role ?? null },
     text: deleted ? '' : m.text ?? '',
-    attachments: deleted ? [] : (m.attachments ?? []).map((a: any, index: number) => ({ index, name: a.name, mime: a.mime, size: a.size })),
+    attachments: deleted ? [] : (m.attachments ?? []).map((a: any, index: number) => ({ index, name: a.name, mime: a.mime, size: a.size, duration: a.duration ?? null })),
+    sticker: deleted ? null : m.sticker ?? null,
+    reactions: deleted ? [] : reactionSummary(m.reactions, names),
     replyTo: m.replyTo
       ? {
           id: String(m.replyTo),
@@ -150,7 +167,7 @@ export function messageView(m: IMessageDocument | Record<string, any>, names: Na
 }
 
 async function namesForMessages(msgs: (IMessageDocument | Record<string, any>)[]) {
-  return namesFor(msgs.flatMap((m) => [m.sender, m.replyPreview?.sender]));
+  return namesFor(msgs.flatMap((m) => [m.sender, m.replyPreview?.sender, ...(m.reactions ?? []).map((r: { user: unknown }) => r.user)]));
 }
 
 /** Who the conversation is "with", from the viewer's side. */
@@ -253,6 +270,8 @@ async function conversationView(conv: IConversationDocument, user: ChatUser, who
     myReadAt: stateOf(conv, user.id)?.readAt ?? null,
     otherReadAt: other.readAt,
     otherDeliveredAt: other.deliveredAt,
+    /** No push notifications from this chat until then (null: not muted) */
+    mutedUntil: (() => { const m = stateOf(conv, user.id)?.mutedUntil; return m && m > new Date() ? m : null; })(),
     /** Intern-to-intern chats: who has blocked whom, from my side. */
     blocked: { byMe: blockedBy.includes(user.id), byThem: blockedBy.some((b) => b !== user.id) },
     /** True when I can send (false for HR reading a reported chat, or when blocked). */
@@ -496,7 +515,12 @@ function pushTarget(userRole: Role | string, convId: string) {
 }
 
 async function notifyNewMessage(conv: IConversationDocument, msg: IMessageDocument, sender: { name: string; role: string }) {
-  const recipients = (await audience(conv)).filter((u) => !same(u, msg.sender));
+  const now = new Date();
+  const recipients = (await audience(conv)).filter((u) => {
+    if (same(u, msg.sender)) return false;
+    const muted = stateOf(conv, u)?.mutedUntil;
+    return !muted || muted <= now;
+  });
   if (!recipients.length) return;
   const roles = await User.find({ _id: { $in: recipients } }).select('role').lean();
   const title = conv.kind === ConversationKind.INTERN_HR && sender.role === Role.HR ? `${sender.name} · HR` : sender.name;
@@ -544,8 +568,10 @@ export async function sendMessage(user: ChatUser, id: string, input: SendMessage
     replyPreview,
     attachments: input.uploads.map((uid) => {
       const u = uploads.find((x) => same(x._id, uid))!;
-      return { key: u.key, name: u.name, mime: u.mime, size: u.size };
+      return { key: u.key, name: u.name, mime: u.mime, size: u.size, duration: u.duration };
     }),
+    sticker: input.sticker,
+    reactions: [],
     clientId: input.clientId,
   });
   if (uploads.length) await ChatUpload.updateMany({ _id: { $in: uploads.map((u) => u._id) } }, { $set: { usedAt: new Date() } });
@@ -656,6 +682,97 @@ export async function typing(user: ChatUser, id: string) {
   void publishToUsers(to, { name: 'typing', data: { conversationId: id, userId: user.id, name: me?.name ?? 'Someone' } });
 }
 
+// ─── Reactions, mute, chat info ──────────────────────────────────────────────
+
+/** Adds my reaction, changes it, or (same emoji again) removes it. One per person, like WhatsApp. */
+export async function react(user: ChatUser, messageId: string, emoji: string) {
+  const msg = await Message.findById(messageId);
+  if (!msg) throw createError('Message not found.', 404);
+  const conv = await loadConversation(String(msg.conversation), user);
+  assertCanSend(conv, user);
+  if (msg.deletedAt) throw createError('This message was deleted.', 409);
+  const mine = (msg.reactions ?? []).find((r) => same(r.user, user.id));
+  const others = (msg.reactions ?? []).filter((r) => !same(r.user, user.id));
+  msg.reactions = mine?.emoji === emoji ? others : [...others, { user: oid(user.id), emoji, at: new Date() }];
+  msg.markModified('reactions');
+  await msg.save();
+  const view = messageView(msg, await namesForMessages([msg]));
+  void publishToUsers(await audience(conv), { name: 'message', data: { type: 'update', message: view } });
+  return view;
+}
+
+const FOREVER = new Date('9999-12-31T00:00:00Z');
+export async function setMute(user: ChatUser, id: string, period: '8h' | '1w' | 'always' | 'off') {
+  const conv = await loadConversation(id, user);
+  if (isOnlyLooking(conv, user)) throw createError('You only have read access to this chat.', 403);
+  const until = period === 'off' ? undefined : period === 'always' ? FOREVER : new Date(Date.now() + (period === '8h' ? 8 : 7 * 24) * 3_600_000);
+  advance(conv, user.id, {});
+  stateOf(conv, user.id)!.mutedUntil = until;
+  conv.markModified('states');
+  await conv.save();
+  const [view] = await viewsOf([conv], user);
+  return view;
+}
+
+const LINK_RE = /\bhttps?:\/\/[^\s<]+[^\s<.,:;"')\]!?]/gi;
+
+/**
+ * The chat info page: basic, non-sensitive details about who you're talking to,
+ * and the photos, documents, voice notes and links shared in the chat.
+ */
+export async function chatInfo(user: ChatUser, id: string) {
+  const conv = await loadConversation(id, user);
+  const [view] = await viewsOf([conv], user);
+
+  let profile: Record<string, unknown> | null = null;
+  const otherId = conv.members.find((m) => !same(m, user.id));
+  if (conv.kind === ConversationKind.INTERN_DM && isMember(conv, user.id) && otherId) {
+    const i = await Intern.findOne({ user: otherId }).select('firstName lastName department internshipType startDate').populate('department', 'name subsidiary').lean();
+    const u = await User.findById(otherId).select('avatarUrl lastSeenAt').lean();
+    const dept = i?.department as unknown as { name?: string; subsidiary?: string } | null;
+    profile = {
+      name: i ? fullName(i) : view.with.name,
+      avatarUrl: u?.avatarUrl ?? null,
+      department: dept?.name ?? null,
+      station: dept?.subsidiary ?? null,
+      internshipType: i?.internshipType ?? null,
+      since: i?.startDate ?? null,
+      lastSeenAt: u?.lastSeenAt ?? null,
+    };
+  } else if (conv.kind === ConversationKind.INTERN_HR && user.role === Role.INTERN) {
+    const hr = await User.find({ role: Role.HR, status: AccountStatus.ACTIVE }).select('firstName lastName').sort({ firstName: 1 }).lean();
+    profile = { name: 'HR team', team: hr.map((h) => fullName(h)) };
+  } else if (otherId || conv.kind === ConversationKind.INTERN_HR) {
+    const uid = conv.kind === ConversationKind.INTERN_HR ? conv.members[0] : otherId;
+    const u = await User.findById(uid).select('firstName lastName role avatarUrl lastSeenAt').lean();
+    profile = { name: view.with.name, role: u?.role ?? null, avatarUrl: u?.avatarUrl ?? null, lastSeenAt: u?.lastSeenAt ?? null, internId: view.with.internId ?? null };
+  }
+
+  const shared = await Message.find({ conversation: conv._id, deletedAt: { $exists: false }, 'attachments.0': { $exists: true } })
+    .select('sender attachments createdAt')
+    .sort({ _id: -1 })
+    .limit(300)
+    .lean();
+  const files = shared.flatMap((m) =>
+    (m.attachments ?? []).map((a, index) => ({ messageId: String(m._id), index, name: a.name, mime: a.mime, size: a.size, duration: a.duration ?? null, at: m.createdAt })),
+  );
+  const withText = await Message.find({ conversation: conv._id, deletedAt: { $exists: false }, text: { $regex: 'https?://' } })
+    .select('text createdAt')
+    .sort({ _id: -1 })
+    .limit(200)
+    .lean();
+  const links = withText.flatMap((m) => (m.text.match(LINK_RE) ?? []).map((url) => ({ messageId: String(m._id), url, at: m.createdAt })));
+
+  return {
+    conversation: view,
+    profile,
+    media: files.filter((f) => f.mime.startsWith('image/')),
+    docs: files.filter((f) => f.mime === 'application/pdf'),
+    voice: files.filter((f) => f.mime.startsWith('audio/')),
+    links: links.slice(0, 200),
+  };
+}
+
 // ─── Intern-to-intern: block, report ─────────────────────────────────────────
 
 async function ownInternDm(user: ChatUser, id: string) {
@@ -748,15 +865,26 @@ export function sniffMime(buf: Buffer): string | null {
   return null;
 }
 
-export async function uploadAttachment(user: ChatUser, buffer: Buffer, name: string) {
+/** Voice recordings: WebM (Chrome/Android), MP4/M4A (iPhone), Ogg (Firefox). Only accepted as voice notes. */
+export function sniffAudio(buf: Buffer): string | null {
+  if (buf.length < 12) return null;
+  if (buf[0] === 0x1a && buf[1] === 0x45 && buf[2] === 0xdf && buf[3] === 0xa3) return 'audio/webm';
+  if (buf.subarray(0, 4).toString('ascii') === 'OggS') return 'audio/ogg';
+  if (buf.subarray(4, 8).toString('ascii') === 'ftyp') return 'audio/mp4';
+  return null;
+}
+
+export async function uploadAttachment(user: ChatUser, buffer: Buffer, name: string, opts: { kind?: 'file' | 'voice'; duration?: number } = {}) {
   if (!buffer?.length) throw createError('The file is empty.', 400);
   if (buffer.length > MAX_UPLOAD_BYTES) throw createError('Files can be up to 8 MB.', 413);
-  const mime = sniffMime(buffer);
-  if (!mime || !ALLOWED_MIME.includes(mime)) throw createError('You can send photos (JPG, PNG, WebP, GIF) and PDFs.', 415);
+  const voice = opts.kind === 'voice';
+  const mime = voice ? sniffAudio(buffer) : sniffMime(buffer);
+  if (voice && (!mime || !VOICE_MIME.includes(mime))) throw createError("That voice message couldn't be read. Try recording again.", 415);
+  if (!voice && (!mime || !ALLOWED_MIME.includes(mime))) throw createError('You can send photos (JPG, PNG, WebP, GIF) and PDFs.', 415);
   const safeName = name.replace(/[^\w.\- ()]/g, '_').slice(0, 120) || 'file';
   const key = await uploadPrivateFile(buffer, safeName);
-  const up = await ChatUpload.create({ owner: oid(user.id), key, name: safeName, mime, size: buffer.length });
-  return { id: String(up._id), name: up.name, mime: up.mime, size: up.size };
+  const up = await ChatUpload.create({ owner: oid(user.id), key, name: safeName, mime: mime!, size: buffer.length, duration: voice ? Math.round(opts.duration ?? 0) : undefined });
+  return { id: String(up._id), name: up.name, mime: up.mime, size: up.size, duration: up.duration ?? null };
 }
 
 export async function getAttachment(user: ChatUser, messageId: string, index: number) {

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { STICKERS } from './chat.stickers';
 
 const objectId = z.string().regex(/^[a-f\d]{24}$/i, 'Invalid ID');
 
@@ -6,6 +7,9 @@ export const MAX_TEXT = 4000;
 export const MAX_ATTACHMENTS = 5;
 export const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;
 export const ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'application/pdf'];
+/** Voice notes: what phones and browsers record (WebM/Opus on Android & Chrome, MP4/AAC on iPhone, Ogg on Firefox). */
+export const VOICE_MIME = ['audio/webm', 'audio/mp4', 'audio/ogg'];
+export const MAX_VOICE_SECONDS = 15 * 60;
 
 /** HR opens a chat with an intern or a supervisor; an intern opens their HR chat (no body). */
 export const openConversationSchema = z.object({
@@ -42,10 +46,12 @@ export const sendMessageSchema = z.object({
       text: z.string().max(MAX_TEXT, `Keep messages under ${MAX_TEXT} characters`).default(''),
       replyTo: objectId.optional(),
       uploads: z.array(objectId).max(MAX_ATTACHMENTS).default([]),
+      sticker: z.enum(STICKERS).optional(),
       clientId: z.string().min(1).max(64).optional(),
     })
     .strict()
-    .refine((b) => b.text.trim().length > 0 || b.uploads.length > 0, 'Type a message or attach a file'),
+    .refine((b) => b.text.trim().length > 0 || b.uploads.length > 0 || !!b.sticker, 'Type a message or attach a file')
+    .refine((b) => !b.sticker || (b.uploads.length === 0 && !b.text.trim()), 'A sticker is sent on its own'),
 });
 
 export const editMessageSchema = z.object({
@@ -60,7 +66,24 @@ export const attachmentSchema = z.object({
 export const conversationIdSchema = z.object({ params: z.object({ id: objectId }) });
 
 export const uploadQuerySchema = z.object({
-  query: z.object({ name: z.string().trim().min(1).max(120) }),
+  query: z.object({
+    name: z.string().trim().min(1).max(120),
+    kind: z.enum(['file', 'voice']).default('file'),
+    duration: z.coerce.number().min(0).max(MAX_VOICE_SECONDS).optional(),
+  }),
+});
+
+/** One emoji (may be several code points, e.g. 👍🏽 or ❤️‍🔥). */
+export const reactSchema = z.object({
+  params: z.object({ messageId: objectId }),
+  body: z.object({
+    emoji: z.string().min(1).max(16).refine((e) => /\p{Extended_Pictographic}/u.test(e) && !/[\p{L}\p{N}]/u.test(e.replace(/[\u{FE0F}\u{200D}\u{20E3}]/gu, '')), 'Pick an emoji'),
+  }).strict(),
+});
+
+export const muteSchema = z.object({
+  params: z.object({ id: objectId }),
+  body: z.object({ for: z.enum(['8h', '1w', 'always', 'off']) }).strict(),
 });
 
 export type SendMessageInput = z.infer<typeof sendMessageSchema>['body'];
