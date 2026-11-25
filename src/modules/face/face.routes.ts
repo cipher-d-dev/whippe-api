@@ -34,6 +34,10 @@ router.get('/', authorize(Role.HR), wrap(async (req, res) => {
   res.json({ success: true, data: { photos: await face.listFacePhotos(query.status) } });
 }));
 
+router.get('/missing', authorize(Role.HR), wrap(async (_req, res) => {
+  res.json({ success: true, data: { interns: await face.listMissingFacePhotos() } });
+}));
+
 router.get('/checkins/:attendanceId/selfie', authorize(Role.HR), wrap(async (req, res) => {
   sendImage(res, await face.getCheckInSelfie(req.params['attendanceId'] ?? ''));
 }));

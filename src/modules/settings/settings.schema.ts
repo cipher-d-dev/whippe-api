@@ -28,7 +28,7 @@ export const updateSettingsSchema = z.object({
         .optional(),
       faceCheck: z
         .object({
-          enabled: z.boolean().optional(),
+          enabled: z.boolean().optional(), // accepted for older clients, ignored: face check is always on
           threshold: z.number().min(0.3).max(0.9).optional(),
         })
         .strict()
