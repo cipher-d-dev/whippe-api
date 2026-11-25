@@ -38,6 +38,10 @@ const envSchema = z.object({
   VAPID_PRIVATE_KEY: z.string().optional(),
   VAPID_SUBJECT:     z.string().optional(),
 
+  // ── Chat live updates (Ably) ──────────────────────────────────────────────
+  // Optional: without it the apps check for new messages every few seconds.
+  ABLY_API_KEY: z.string().optional(),
+
   // ── Appwrite Storage ──────────────────────────────────────────────────────
   // Required once file uploads are live. Leave as empty strings in dev
   // until a real Appwrite project is configured.

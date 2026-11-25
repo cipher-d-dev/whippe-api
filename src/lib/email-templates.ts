@@ -612,3 +612,35 @@ export function renderSupervisorReinviteEmail(input: SupervisorReinviteEmailInpu
 
   return { subject, html, text };
 }
+
+// ─── Unread chat messages ─────────────────────────────────────────────────────
+
+export interface ChatNudgeEmailInput {
+  firstName: string;
+  fromName: string;
+  link: string;
+}
+
+export function renderChatNudgeEmail(input: ChatNudgeEmailInput): RenderedEmail {
+  const subject = `You have an unread message from ${input.fromName} on ${BRAND}`;
+  const html = wrap({
+    preheader: `${input.fromName} sent you a message on ${BRAND}.`,
+    headingHtml: heading('You have an unread message'),
+    bodyHtml: `
+      ${bodyText(`Hi ${esc(input.firstName)}, ${highlight(esc(input.fromName))} sent you a message on ${BRAND} a few hours ago that you haven't read yet.`)}
+      ${bodyText('Open the chat to read and reply. The message isn\'t included in this email to keep it private.')}
+    `,
+    ctaLabel: 'Open chat',
+    ctaUrl: input.link,
+    footerNote: `You get this at most once a day per chat, only when a message has been unread for a few hours.`,
+  });
+  const text = [
+    `Hi ${input.firstName},`,
+    '',
+    `${input.fromName} sent you a message on ${BRAND} that you haven't read yet.`,
+    `Open the chat: ${input.link}`,
+    '',
+    `© ${new Date().getFullYear()} ${BRAND} · ${COMPANY_NAME}`,
+  ].join('\n');
+  return { subject, html, text };
+}
