@@ -18,7 +18,7 @@ export const openConversationSchema = z.object({
 export const listConversationsSchema = z.object({
   query: z.object({
     search: z.string().trim().max(80).optional(),
-    kind: z.enum(['INTERN_HR', 'STAFF_DM']).optional(),
+    kind: z.enum(['INTERN_HR', 'STAFF_DM', 'INTERN_DM']).optional(),
     limit: z.coerce.number().int().positive().max(200).default(100),
   }),
 });
@@ -64,3 +64,14 @@ export const uploadQuerySchema = z.object({
 });
 
 export type SendMessageInput = z.infer<typeof sendMessageSchema>['body'];
+
+export const reportSchema = z.object({
+  params: z.object({ id: objectId }),
+  body: z
+    .object({
+      reason: z.string().trim().min(3, 'Say briefly what happened').max(500),
+      messageId: objectId.optional(),
+      block: z.boolean().default(false),
+    })
+    .strict(),
+});
