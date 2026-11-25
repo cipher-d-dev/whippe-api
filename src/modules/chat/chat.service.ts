@@ -6,6 +6,7 @@ import { ALLOWED_MIME, MAX_UPLOAD_BYTES, SendMessageInput } from './chat.schema'
 import { publishToUsers } from './chat.realtime';
 import { User } from '../users/user.model';
 import { Intern } from '../interns/intern.model';
+import { Supervisor } from '../supervisors/supervisor.model';
 import { InternshipStatus } from '../interns/intern.types';
 import { AccountStatus, Role } from '../auth/auth.types';
 import { sendPushToUser } from '../notifications/push.service';
@@ -319,6 +320,42 @@ export async function unreadTotal(user: ChatUser): Promise<{ chats: number }> {
     if (c.lastMessage && !same(c.lastMessage.sender, user.id) && !c.lastMessage.deleted && (!readAt || readAt < c.lastMessageAt!)) chats++;
   }
   return { chats };
+}
+
+/**
+ * People this person can start a chat with: HR → interns (with an account) and
+ * supervisors; supervisors → HR; interns → nobody (they have their HR chat).
+ */
+export async function listContacts(user: ChatUser) {
+  if (user.role === Role.HR) {
+    const [interns, sups] = await Promise.all([
+      Intern.find({ status: { $in: [InternshipStatus.ACTIVE, InternshipStatus.ONBOARDING] }, user: { $exists: true, $ne: null } })
+        .select('firstName lastName department internshipType')
+        .populate('department', 'name')
+        .sort({ firstName: 1, lastName: 1 })
+        .lean(),
+      Supervisor.find({ isActive: true }).select('user firstName lastName departments').populate('departments', 'name').sort({ firstName: 1 }).lean(),
+    ]);
+    return {
+      interns: interns.map((i) => ({
+        internId: String(i._id),
+        name: fullName(i),
+        subtitle: (i.department as unknown as { name?: string } | null)?.name ?? null,
+        internshipType: i.internshipType ?? null,
+      })),
+      people: sups.map((s) => ({
+        userId: String(s.user),
+        name: fullName(s),
+        subtitle: ((s.departments ?? []) as unknown as { name?: string }[]).map((d) => d?.name).filter(Boolean).join(', ') || 'Supervisor',
+        role: Role.SUPERVISOR,
+      })),
+    };
+  }
+  if (user.role === Role.SUPERVISOR) {
+    const hr = await User.find({ role: Role.HR, status: AccountStatus.ACTIVE }).select('firstName lastName').sort({ firstName: 1 }).lean();
+    return { interns: [], people: hr.map((h) => ({ userId: String(h._id), name: fullName(h), subtitle: 'HR', role: Role.HR })) };
+  }
+  return { interns: [], people: [] };
 }
 
 // ─── Messages ────────────────────────────────────────────────────────────────

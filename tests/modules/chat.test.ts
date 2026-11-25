@@ -10,6 +10,7 @@ const models = {
   ChatUpload: fakeModel('ChatUpload'),
   User: fakeModel('User'),
   Intern: fakeModel('Intern'),
+  Supervisor: fakeModel('Supervisor'),
 };
 
 jest.mock('../../src/modules/chat/chat.model', () => ({
@@ -20,6 +21,7 @@ jest.mock('../../src/modules/chat/chat.model', () => ({
 }));
 jest.mock('../../src/modules/users/user.model', () => ({ User: models.User }));
 jest.mock('../../src/modules/interns/intern.model', () => ({ Intern: models.Intern }));
+jest.mock('../../src/modules/supervisors/supervisor.model', () => ({ Supervisor: models.Supervisor }));
 jest.mock('../../src/modules/notifications/push.service', () => ({ sendPushToUser: jest.fn(async () => undefined) }));
 jest.mock('../../src/lib/appwrite', () => ({
   uploadPrivateFile: jest.fn(async () => `file-${Math.random().toString(36).slice(2)}`),
@@ -51,6 +53,8 @@ const intern = person(Role.INTERN, 'Tolani');
 const intern2 = person(Role.INTERN, 'Chiamaka');
 const internRec = models.Intern.insert({ firstName: 'Tolani', lastName: 'T', user: intern.id, status: 'ACTIVE', internshipType: 'NYSC_IT' });
 const intern2Rec = models.Intern.insert({ firstName: 'Chiamaka', lastName: 'T', user: intern2.id, status: 'ACTIVE' });
+models.Intern.insert({ firstName: 'Noaccount', lastName: 'Yet', status: 'ACTIVE' });
+models.Supervisor.insert({ user: sup.id, firstName: 'Greg', lastName: 'T', isActive: true, departments: [] });
 
 describe('chat', () => {
   let convId = '';
@@ -62,6 +66,16 @@ describe('chat', () => {
     expect(again.id).toBe(c.id);
     expect(again.with.name).toBe('Tolani T');
     convId = c.id;
+  });
+
+  it('lists who each person can start a chat with', async () => {
+    const hr = await chat.listContacts(hr1);
+    expect(hr.interns.map((i) => i.name).sort()).toEqual(['Chiamaka T', 'Tolani T']); // not the one without an account
+    expect(hr.people).toEqual([expect.objectContaining({ userId: sup.id, role: 'SUPERVISOR' })]);
+    const s = await chat.listContacts(sup);
+    expect(s.interns).toEqual([]);
+    expect(s.people.map((p) => p.userId).sort()).toEqual([hr1.id, hr2.id].sort());
+    expect(await chat.listContacts(intern)).toEqual({ interns: [], people: [] });
   });
 
   it('keeps people out of chats that are not theirs', async () => {
