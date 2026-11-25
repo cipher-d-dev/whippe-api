@@ -24,10 +24,12 @@ app.use(
   }),
 );
 
-// Global rate-limit: 200 req / 15 min per IP
+// Global rate-limit per IP. Generous on purpose: everyone on DAAR's office
+// Wi-Fi shares one public IP, and an open staff portal polls ~7 times a minute,
+// so the old 200 / 15 min ran out and pages showed empty lists.
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 200,
+  max: 5000,
   standardHeaders: true,
   legacyHeaders: false,
   message: { success: false, message: 'Too many requests, please try again later.' },
