@@ -492,7 +492,7 @@ export async function listMessages(
 }
 
 function pushTarget(userRole: Role | string, convId: string) {
-  return userRole === Role.INTERN ? `${appUrlFor(Role.INTERN)}/chat?c=${convId}` : `${staffPortalUrl()}/messages?c=${convId}`;
+  return userRole === Role.INTERN ? `${appUrlFor(Role.INTERN)}/chat/${convId}` : `${staffPortalUrl()}/messages?c=${convId}`;
 }
 
 async function notifyNewMessage(conv: IConversationDocument, msg: IMessageDocument, sender: { name: string; role: string }) {
