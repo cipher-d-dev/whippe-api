@@ -25,6 +25,10 @@ router.get('/realtime-token', wrap(async (req, res) => {
   res.json({ success: true, data: { enabled: realtimeEnabled(), tokenRequest } });
 }));
 
+router.get('/contacts', wrap(async (req, res) => {
+  res.json({ success: true, data: await chat.listContacts(me(req)) });
+}));
+
 router.get('/unread', wrap(async (req, res) => {
   res.json({ success: true, data: await chat.unreadTotal(me(req)) });
 }));
